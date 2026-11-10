@@ -22,3 +22,28 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# --- Python-for-Minecraft -------------------------------------------------
+# Gradle / build output
+.gradle/
+build/
+run/
+platforms/*/*/build/
+examples/*/*/build/
+
+# The Gradle wrapper jar is not committed (it could not be downloaded in the
+# environment this repository was prepared in); regenerate it with `gradle wrapper`.
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Vendoring cache (the vendored wheels themselves ARE committed)
+tools/.vendor-cache/
+
+# IDE
+.idea/
+.vscode/
+*.iml
