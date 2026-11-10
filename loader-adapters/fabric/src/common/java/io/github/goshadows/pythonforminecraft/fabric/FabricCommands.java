@@ -31,7 +31,7 @@ public final class FabricCommands {
         }
         Commands.setReplier((source, text) -> {
             if (source instanceof CommandSourceStack stack) {
-                stack.sendFeedback(() -> Component.literal(text), false);
+                stack.sendSuccess(() -> Component.literal(text), false);
             } else {
                 PyFm.log().warn("{} cannot reply to source {}: {}", PyFm.LOG_PREFIX, source,
                         text);

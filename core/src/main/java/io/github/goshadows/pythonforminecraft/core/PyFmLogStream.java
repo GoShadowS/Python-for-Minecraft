@@ -19,7 +19,7 @@ public final class PyFmLogStream extends java.io.OutputStream {
     private final String modId;
     private final boolean error;
 
-    PyFmLogStream(final String modId, final boolean error) {
+    public PyFmLogStream(final String modId, final boolean error) {
         this.modId = modId;
         this.error = error;
     }

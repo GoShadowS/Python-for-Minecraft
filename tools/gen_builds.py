@@ -315,7 +315,12 @@ def fabric_settings(name: str, cfg: dict) -> None:
 def fabric_properties(name: str, cfg: dict) -> None:
     write(f"platforms/{name}/gradle.properties", f"""
         org.gradle.jvmargs=-Xmx3G
-        org.gradle.parallel=true
+        # The three subprojects share one Loom/ModDevGradle cache for the same Minecraft
+        # version. Configuring them in parallel let one of them disown the cache lock and
+        # rebuild it underneath the others -- run 42840517087, fabric-26.3: "Previous
+        # process has disowned the lock due to abrupt termination", then "Failed to setup
+        # Minecraft, ProviderNotFoundException: Provider jar not found".
+        org.gradle.parallel=false
 
         # Keep loom_version in sync with the plugins block of build.gradle.kts.
         loom_version={LOOM}
@@ -563,7 +568,12 @@ def neoforge_settings(name: str, cfg: dict) -> None:
 def neoforge_properties(name: str, cfg: dict) -> None:
     write(f"platforms/{name}/gradle.properties", f"""
         org.gradle.jvmargs=-Xmx3G
-        org.gradle.parallel=true
+        # The three subprojects share one Loom/ModDevGradle cache for the same Minecraft
+        # version. Configuring them in parallel let one of them disown the cache lock and
+        # rebuild it underneath the others -- run 42840517087, fabric-26.3: "Previous
+        # process has disowned the lock due to abrupt termination", then "Failed to setup
+        # Minecraft, ProviderNotFoundException: Provider jar not found".
+        org.gradle.parallel=false
 
         minecraft_version={cfg['minecraft']}
         neoforge_version={cfg['neoforge']}
@@ -662,7 +672,10 @@ def neoforge_sub_build(name: str, cfg: dict, sub: str, meta: dict) -> None:
     if sub == "pyfm-core":
         sources = ('listOf("../../../core/src/main/java", '
                    '"../../../loader-adapters/neoforge/src/lang/java")')
-        mdg = ""
+        mdg = """
+neoForge {
+    version = neoforge_version
+}"""
         manifest = """
 tasks.jar {
     manifest {
@@ -674,8 +687,7 @@ tasks.jar {
         )
     }
 }"""
-        extra = """    compileOnly("net.neoforged:neoforge:${neoforge_version}")
-    implementation(libs.bundles.graalpy)
+        extra = """    implementation(libs.bundles.graalpy)
     "shade"(libs.bundles.graalpy)"""
         python_resources = """
 tasks.processResources {
@@ -701,7 +713,8 @@ neoForge {
         python_resources = ""
     plugins = ('id("%s")\n    alias(libs.plugins.shadow)' % MODDEV_PLUGIN_ID
                if sub != "pyfm-core" else
-               '`java-library`\n    alias(libs.plugins.shadow)')
+               '`java-library`\n    id("%s")\n    alias(libs.plugins.shadow)'
+               % MODDEV_PLUGIN_ID)
     write(f"platforms/{name}/{sub}/build.gradle.kts", """
         %(imports)splugins {
             %(plugins)s

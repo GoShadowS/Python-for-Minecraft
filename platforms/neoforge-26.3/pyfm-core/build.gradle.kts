@@ -2,6 +2,7 @@ import java.util.jar.JarFile
 
 plugins {
     `java-library`
+    id("net.neoforged.moddev")
     alias(libs.plugins.shadow)
 }
 
@@ -23,9 +24,11 @@ repositories {
     mavenCentral()
 }
 
+neoForge {
+    version = neoforge_version
+}
 dependencies {
     compileOnly(libs.slf4j.api)
-    compileOnly("net.neoforged:neoforge:${neoforge_version}")
     implementation(libs.bundles.graalpy)
     "shade"(libs.bundles.graalpy)
 }
