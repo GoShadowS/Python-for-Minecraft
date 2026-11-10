@@ -32,7 +32,10 @@ FABRIC_LOADER = "0.20.1"
 # 1.21.1 and the 26.3 branch; there is no released "1.19" artifact.
 LOOM = "1.19-SNAPSHOT"
 FABRIC_GRADLE = "9.8.2"
-NEOFORGE_GRADLE = "8.14.5"
+# Gradle 8.14.5 fails on JDK 25: its bundled Kotlin compiler raises
+# "IllegalArgumentException: 25.0.5". KotlinForForge 6.x pairs moddev 2.0.71 with
+# gradle-9.6.1, so that combination is used here.
+NEOFORGE_GRADLE = "9.6.1"
 # ModDevGradle's plugin id is "net.neoforged.moddev" (NOT "moddevgradle") and the
 # version is taken from thedarkcolour/KotlinForForge@6.x gradle/libs.versions.toml,
 # which pins moddev = "2.0.71".
@@ -310,7 +313,6 @@ def fabric_properties(name: str, cfg: dict) -> None:
     write(f"platforms/{name}/gradle.properties", f"""
         org.gradle.jvmargs=-Xmx3G
         org.gradle.parallel=true
-        org.gradle.configuration-cache=true
 
         # Keep loom_version in sync with the plugins block of build.gradle.kts.
         loom_version={LOOM}
@@ -494,11 +496,9 @@ tasks.build { dependsOn(tasks.shadowJar) }"""
             options.encoding = "UTF-8"
         }
 
-        java {
-            toolchain {
-                languageVersion.set(JavaLanguageVersion.of(java_version.toInt()))
-            }
-        }
+        // No toolchain block on purpose: options.release above pins the bytecode
+        // level, while the build JVM itself must satisfy the Gradle plugin
+        // (Loom 1.19 needs JDK 25 even for Minecraft 1.21.1).
 
         tasks.processResources {
             val version = project.version.toString()
@@ -561,7 +561,6 @@ def neoforge_properties(name: str, cfg: dict) -> None:
     write(f"platforms/{name}/gradle.properties", f"""
         org.gradle.jvmargs=-Xmx3G
         org.gradle.parallel=true
-        org.gradle.configuration-cache=true
 
         minecraft_version={cfg['minecraft']}
         neoforge_version={cfg['neoforge']}
@@ -687,7 +686,7 @@ tasks.processResources {
                    % ("client" if sub == "pyfm-client" else "server"))
         mdg = """
 neoForge {
-    version.set(neoforge_version)
+    version = neoforge_version
     runs {
         register("client") { client() }
         register("server") { server() }
@@ -739,11 +738,7 @@ neoForge {
             options.encoding = "UTF-8"
         }
 
-        java {
-            toolchain {
-                languageVersion.set(JavaLanguageVersion.of(java_version.toInt()))
-            }
-        }
+        // No toolchain block on purpose; see the fabric builds.
         %(manifest)s
         tasks.shadowJar {
             configurations = listOf(project.configurations.named("shade").get())

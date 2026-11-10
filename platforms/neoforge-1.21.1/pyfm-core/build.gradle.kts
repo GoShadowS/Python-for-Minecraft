@@ -45,11 +45,7 @@ tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
 }
 
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(java_version.toInt()))
-    }
-}
+// No toolchain block on purpose; see the fabric builds.
 
 tasks.jar {
     manifest {

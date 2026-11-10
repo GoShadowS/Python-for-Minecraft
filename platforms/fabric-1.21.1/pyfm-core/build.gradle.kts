@@ -52,11 +52,9 @@ tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
 }
 
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(java_version.toInt()))
-    }
-}
+// No toolchain block on purpose: options.release above pins the bytecode
+// level, while the build JVM itself must satisfy the Gradle plugin
+// (Loom 1.19 needs JDK 25 even for Minecraft 1.21.1).
 
 tasks.processResources {
     val version = project.version.toString()

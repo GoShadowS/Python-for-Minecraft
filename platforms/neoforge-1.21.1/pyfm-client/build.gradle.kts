@@ -22,7 +22,7 @@ repositories {
 }
 
 neoForge {
-    version.set(neoforge_version)
+    version = neoforge_version
     runs {
         register("client") { client() }
         register("server") { server() }
@@ -45,11 +45,7 @@ tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
 }
 
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(java_version.toInt()))
-    }
-}
+// No toolchain block on purpose; see the fabric builds.
 
 tasks.shadowJar {
     configurations = listOf(project.configurations.named("shade").get())
