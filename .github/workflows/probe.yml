@@ -35,8 +35,10 @@ jobs:
 
           # maven_versions <url> -> all <version> values, one per line
           maven_versions () {
+            # Splitting on '<' puts the closing tag on its own line, so the version
+            # value is the whole remainder of the line after "version>".
             curl -sS --max-time 60 "$1" 2>/dev/null \
-              | tr '<' '\n' | sed -n 's|^version>\(.*\)/version>|\1|p'
+              | tr '<' '\n' | sed -n 's|^version>\(.*\)$|\1|p'
           }
 
           # check <label> <url> <pinned>
