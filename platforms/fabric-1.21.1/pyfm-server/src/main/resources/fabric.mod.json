@@ -1,0 +1,30 @@
+{
+    "schemaVersion": 1,
+    "id": "pythonforminecraft_server",
+    "version": "${version}",
+    "name": "Python for Minecraft (server-capable)",
+    "description": "Python-for-Minecraft: run ordinary Minecraft mods written in Python. Language provider, comparable to Fabric Language Kotlin and Kotlin for Forge.",
+    "authors": [
+    "GoShadowS"
+    ],
+    "contact": {
+        "sources": "https://github.com/GoShadowS/Python-for-Minecraft"
+    },
+    "license": "Apache-2.0",
+    "environment": "*",
+    "entrypoints": {
+        "main": [
+        "io.github.goshadows.pythonforminecraft.fabric.PyFmServer"
+        ]
+    },
+    "depends": {
+        "fabricloader": ">=0.20.1",
+        "minecraft": "~1.21.1",
+        "java": ">=21",
+        "pythonforminecraft_core": ">=1.0.0",
+        "fabric-api": "*"
+    },
+    "custom": {
+        "pythonforminecraft:component": "pyfm-server"
+    }
+}

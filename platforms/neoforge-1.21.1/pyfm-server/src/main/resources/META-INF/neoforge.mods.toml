@@ -1,0 +1,34 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "Apache-2.0"
+issueTrackerURL = "https://github.com/GoShadowS/Python-for-Minecraft/issues"
+
+[[mods]]
+modId = "pythonforminecraft_server"
+version = "${version}"
+displayName = "Python for Minecraft (server-capable)"
+authors = "GoShadowS"
+description = '''
+Python-for-Minecraft: run ordinary Minecraft mods written in Python. Language provider, comparable to Fabric Language Kotlin and Kotlin for Forge.
+'''
+
+[[dependencies.pythonforminecraft_server]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.pythonforminecraft_server]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.21.2)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.pythonforminecraft_server]]
+modId = "pythonforminecraft_core"
+type = "required"
+versionRange = "[1.0.0,)"
+ordering = "AFTER"
+side = "BOTH"
