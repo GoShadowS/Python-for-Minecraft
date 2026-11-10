@@ -1,0 +1,49 @@
+// Example Python mod: a normal NeoForge mod jar whose modLoader is
+// "pythonforminecraft", so it contains no Java code at all.
+plugins {
+    id("net.neoforged.moddevgradle") version "2.0.90"
+}
+
+val neoforge_version: String by project
+val java_version: String by project
+
+base {
+    archivesName.set("pyhello_client-neoforge-26.3")
+}
+
+neoForge {
+    version.set(neoforge_version)
+}
+
+// This mod has no Java sources at all.
+sourceSets {
+    named("main") {
+        java.setSrcDirs(emptyList<String>())
+    }
+}
+
+tasks.processResources {
+    from("../python") {
+        include("pyhello_client/**")
+        into("python")
+    }
+    from("../python") {
+        include("vendor/**")
+        into("python")
+    }
+    val version = project.version.toString()
+    inputs.property("version", version)
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand("version" to version)
+    }
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(java_version.toInt())
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(java_version.toInt()))
+    }
+}

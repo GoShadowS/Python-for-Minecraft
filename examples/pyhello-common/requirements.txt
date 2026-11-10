@@ -1,0 +1,10 @@
+# Vendored Python dependencies of the pyhello_common example mod.
+#
+# This file is the input of tools/vendor_deps.py and must be fully pinned and
+# hash-locked, exactly like a `pip install --require-hashes` file.  The wheels are
+# downloaded at build time, unpacked into python/vendor/ and shipped inside the mod jar;
+# nothing is fetched while the game runs.
+#
+# Only pure-Python wheels (py*-none-any) are accepted -- see docs/dependencies.md.
+six==1.17.0 \
+    --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274

@@ -1,0 +1,15 @@
+{
+  "generator": "tools/vendor_deps.py",
+  "lock_version": 1,
+  "note": "Generated. Do not edit. Re-run tools/vendor_deps.py to update.",
+  "packages": [
+    {
+      "license_file": "six-1.17.0.dist-info/LICENSE",
+      "name": "six",
+      "requirement": "six==1.17.0",
+      "sha256": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274",
+      "version": "1.17.0",
+      "wheel": "six-1.17.0-py2.py3-none-any.whl"
+    }
+  ]
+}

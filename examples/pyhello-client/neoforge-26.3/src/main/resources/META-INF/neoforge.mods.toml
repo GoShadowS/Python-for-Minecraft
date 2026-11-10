@@ -1,0 +1,37 @@
+modLoader = "pythonforminecraft"
+loaderVersion = "[1,)"
+license = "Apache-2.0"
+issueTrackerURL = "https://github.com/GoShadowS/Python-for-Minecraft/issues"
+
+[[mods]]
+modId = "pyhello_client"
+version = "${version}"
+displayName = "PyHello Client (Python)"
+authors = "GoShadowS"
+description = "Client-only Python smoke test for Python-for-Minecraft."
+
+[[dependencies.pyhello_client]]
+modId = "neoforge"
+type = "required"
+versionRange = "[26.3,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.pyhello_client]]
+modId = "minecraft"
+type = "required"
+versionRange = "[26.3,26.4)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.pyhello_client]]
+modId = "pythonforminecraft"
+type = "required"
+versionRange = "[1.0.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[modproperties.pyhello_client]
+python_root = "python"
+modules = ["pyhello_client"]
+pyfm_client = "pyhello_client.entry:PyHelloClient"

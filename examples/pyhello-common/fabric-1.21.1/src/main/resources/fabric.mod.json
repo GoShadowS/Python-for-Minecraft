@@ -1,0 +1,47 @@
+{
+    "schemaVersion": 1,
+    "id": "pyhello_common",
+    "version": "${version}",
+    "name": "PyHello Common (Python)",
+    "description": "Common/server Python smoke test for Python-for-Minecraft.",
+    "authors": [
+        "GoShadowS"
+    ],
+    "contact": {
+        "sources": "https://github.com/GoShadowS/Python-for-Minecraft"
+    },
+    "license": "Apache-2.0",
+    "environment": "*",
+    "entrypoints": {
+        "main": [
+            {
+                "adapter": "python",
+                "value": "pyhello_common.entry:PyHelloCommon"
+            }
+        ],
+        "server": [
+            {
+                "adapter": "python",
+                "value": "pyhello_common.entry:PyHelloCommon"
+            }
+        ]
+    },
+    "custom": {
+        "pythonforminecraft": {
+            "python_root": "python",
+            "modules": [
+                "pyhello_common"
+            ],
+            "vendor": [
+                "python/vendor"
+            ]
+        }
+    },
+    "depends": {
+        "pythonforminecraft_core": ">=1.0.0",
+        "pythonforminecraft_server": ">=1.0.0",
+        "fabricloader": ">=0.20.1",
+        "minecraft": "~1.21.1",
+        "java": ">=21"
+    }
+}

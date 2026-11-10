@@ -1,0 +1,39 @@
+modLoader = "pythonforminecraft"
+loaderVersion = "[1,)"
+license = "Apache-2.0"
+issueTrackerURL = "https://github.com/GoShadowS/Python-for-Minecraft/issues"
+
+[[mods]]
+modId = "pyhello_common"
+version = "${version}"
+displayName = "PyHello Common (Python)"
+authors = "GoShadowS"
+description = "Common/server Python smoke test for Python-for-Minecraft."
+
+[[dependencies.pyhello_common]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.pyhello_common]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.21.2)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.pyhello_common]]
+modId = "pythonforminecraft_server"
+type = "required"
+versionRange = "[1.0.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[modproperties.pyhello_common]
+python_root = "python"
+modules = ["pyhello_common"]
+vendor = ["python/vendor"]
+pyfm_main = "pyhello_common.entry:PyHelloCommon"
+pyfm_server = "pyhello_common.entry:PyHelloCommon"
