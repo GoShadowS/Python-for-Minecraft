@@ -1,11 +1,13 @@
 name: Probe
 
 # Resolves the real, currently published versions of every dependency this project pins,
-# straight from the upstream repositories. It exists because the development sandbox has no
-# route to Maven Central, maven.fabricmc.net, maven.neoforged.net, the Gradle Plugin Portal
-# or piston-meta.mojang.com, so no version may be pinned from memory.
+# straight from the upstream repositories, and reports whether each pinned version actually
+# exists. It exists because the development sandbox has no route to Maven Central,
+# maven.fabricmc.net, maven.neoforged.net, the Gradle Plugin Portal or
+# piston-meta.mojang.com, so no version may be pinned from memory.
 #
-# Results are published as annotations, which stay readable through api.github.com:
+# Output is deliberately compact and published as annotations, which stay readable through
+# api.github.com:
 #   gh api repos/<owner>/<repo>/check-runs/<job-id>/annotations
 
 on:
@@ -25,79 +27,94 @@ jobs:
       - name: Probe every pinned dependency
         run: |
           # GitHub Actions runs steps with `bash -eo pipefail` by default, and a `grep`
-          # with no match returns 1 -- that would abort the probe on the first repository
-          # that simply has no matching version. Errors are recorded, not fatal.
+          # with no match returns 1 -- that would abort the probe. Errors are recorded,
+          # not fatal.
           set +e
           out=probe.txt
           : > "$out"
 
-          probe () {
-            local label="$1" url="$2" filter="${3:-}"
-            {
-              echo "===== $label"
-              echo "url: $url"
-              local body status
-              body=$(curl -sS --max-time 60 "$url" 2>&1) || { echo "  FETCH FAILED"; echo; return; }
-              if [ -n "$filter" ]; then
-                echo "$body" | grep -E "$filter" | tail -30
-              else
-                echo "$body" | tail -40
-              fi
-              echo
-            } >> "$out"
+          # maven_versions <url> -> all <version> values, one per line
+          maven_versions () {
+            curl -sS --max-time 60 "$1" 2>/dev/null \
+              | tr '<' '\n' | sed -n 's|^version>\(.*\)/version>|\1|p'
           }
 
-          # What this repository currently pins, so the diff is visible.
-          {
-            echo "===== currently pinned in gradle/libs.versions.toml"
-            cat gradle/libs.versions.toml
-            echo
-            echo "===== currently pinned in tools/gen_builds.py (PLATFORMS)"
-            sed -n '/^PLATFORMS/,/^}/p' tools/gen_builds.py
-            echo
-          } >> "$out"
+          # check <label> <url> <pinned>
+          # Reports: pinned exists? and the newest version. Never fails the step.
+          check () {
+            local label="$1" url="$2" pinned="$3"
+            local all latest verdict
+            all=$(maven_versions "$url")
+            if [ -z "$all" ]; then
+              echo "$label: FETCH FAILED or no <version> entries ($url)" >> "$out"
+              return
+            fi
+            latest=$(echo "$all" | tail -1)
+            if [ "$pinned" = "-" ]; then
+              verdict="pinned=n/a"
+            elif echo "$all" | grep -Fxq "$pinned"; then
+              verdict="pinned=$pinned OK"
+            else
+              verdict="pinned=$pinned MISSING"
+            fi
+            echo "$label: $verdict; newest=$latest; count=$(echo "$all" | wc -l)" >> "$out"
+          }
 
           M=https://repo1.maven.org/maven2
           F=https://maven.fabricmc.net
           N=https://maven.neoforged.net/releases
           P=https://plugins.gradle.org/m2
 
-          probe "Minecraft versions (Mojang piston-meta)" \
-                "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" \
-                '"id":"(1\.21\.1|26\.3)"'
-          probe "net.fabricmc:fabric-loader" \
-                "$F/net/fabricmc/fabric-loader/maven-metadata.xml" "<version>0\.(19|20)"
-          probe "net.fabricmc.fabric-api:fabric-api" \
-                "$F/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml" "1\.21\.1|26\.3"
-          probe "fabric-loom (Fabric maven)" \
-                "$F/net/fabricmc/fabric-loom/maven-metadata.xml" "<version>1\.(1[5-9]|2[0-9])"
-          probe "net.fabricmc:fabric-loom plugin marker (Plugin Portal)" \
-                "$P/net/fabricmc/fabric-loom/net.fabricmc.fabric-loom.gradle.plugin/maven-metadata.xml" "<version>1\.(1[5-9]|2[0-9])"
-          probe "net.fabricmc:fabric-loom-remap plugin marker (Plugin Portal)" \
-                "$P/net/fabricmc/fabric-loom-remap/net.fabricmc.fabric-loom-remap.gradle.plugin/maven-metadata.xml" "<version>"
-          probe "org.graalvm.polyglot:polyglot" \
-                "$M/org/graalvm/polyglot/polyglot/maven-metadata.xml" "<version>2[45]\."
-          probe "org.graalvm.polyglot:python-community" \
-                "$M/org/graalvm/polyglot/python-community/maven-metadata.xml" "<version>2[45]\."
-          probe "org.graalvm.python:python-embedding" \
-                "$M/org/graalvm/python/python-embedding/maven-metadata.xml" "<version>"
-          probe "org.slf4j:slf4j-api" \
-                "$M/org/slf4j/slf4j-api/maven-metadata.xml" "<version>2\.0\."
-          probe "org.junit.jupiter:junit-jupiter" \
-                "$M/org/junit/jupiter/junit-jupiter/maven-metadata.xml" "<version>5\.1[0-9]"
-          probe "com.gradleup.shadow plugin marker" \
-                "$P/com/gradleup/shadow/com.gradleup.shadow.gradle.plugin/maven-metadata.xml" "<version>"
-          probe "net.neoforged.moddevgradle plugin marker" \
-                "$P/net/neoforged/moddevgradle/net.neoforged.moddevgradle.gradle.plugin/maven-metadata.xml" "<version>"
-          probe "net.neoforged:neoforge (NeoForged maven)" \
-                "$N/net/neoforged/neoforge/maven-metadata.xml" "21\.1\.|26\.3\."
-          probe "net.neoforged:neoforgespi (NeoForged maven)" \
-                "$N/net/neoforged/neoforgespi/maven-metadata.xml" "<version>"
-          probe "net.neoforged:fancymodloader (NeoForged maven)" \
-                "$N/net/neoforged/fancymodloader/maven-metadata.xml" "<version>"
+          {
+            echo "### Minecraft (piston-meta version_manifest_v2)"
+            curl -sS --max-time 60 \
+              https://piston-meta.mojang.com/mc/game/version_manifest_v2.json 2>/dev/null \
+              | tr '{' '\n' | grep -E '"id":"(1\.21\.1|26\.3)"' \
+              | sed -n 's/.*"id":"\([^"]*\)".*"releaseTime":"\([^"]*\)".*/  \1  released \2/p'
+            echo
+          } >> "$out"
+
+          check "fabric-loader"          "$F/net/fabricmc/fabric-loader/maven-metadata.xml"                        "0.20.1"
+          check "fabric-api-1.21.1"      "$F/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml"                "0.116.17+1.21.1"
+          check "fabric-api-26.3"        "$F/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml"                "0.165.2+26.3"
+          check "fabric-loom"            "$F/net/fabricmc/fabric-loom/maven-metadata.xml"                          "1.19"
+          check "loom-plugin-marker"     "$P/net/fabricmc/fabric-loom/net.fabricmc.fabric-loom.gradle.plugin/maven-metadata.xml"                 "1.19"
+          check "loom-remap-marker"      "$P/net/fabricmc/fabric-loom-remap/net.fabricmc.fabric-loom-remap.gradle.plugin/maven-metadata.xml"     "1.19"
+          check "graalvm-polyglot"       "$M/org/graalvm/polyglot/polyglot/maven-metadata.xml"                     "25.5.5"
+          check "python-community"       "$M/org/graalvm/polyglot/python-community/maven-metadata.xml"             "25.5.5"
+          check "python-embedding"       "$M/org/graalvm/python/python-embedding/maven-metadata.xml"               "-"
+          check "slf4j-api"              "$M/org/slf4j/slf4j-api/maven-metadata.xml"                               "2.0.17"
+          check "junit-jupiter"          "$M/org/junit/jupiter/junit-jupiter/maven-metadata.xml"                   "5.11.4"
+          check "shadow-plugin"          "$P/com/gradleup/shadow/com.gradleup.shadow.gradle.plugin/maven-metadata.xml" "9.2.2"
+          check "moddevgradle-portal"    "$P/net/neoforged/moddevgradle/net.neoforged.moddevgradle.gradle.plugin/maven-metadata.xml" "2.0.71"
+          check "moddevgradle-neoforged" "$N/net/neoforged/moddevgradle/net.neoforged.moddevgradle.gradle.plugin/maven-metadata.xml" "2.0.71"
+          check "neoforge"               "$N/net/neoforged/neoforge/maven-metadata.xml"                            "-"
+          check "neoforgespi"            "$N/net/neoforged/neoforgespi/maven-metadata.xml"                         "-"
+          check "fancymodloader"         "$N/net/neoforged/fancymodloader/maven-metadata.xml"                      "-"
+
+          {
+            echo
+            echo "### neoforge: newest per interesting line"
+            for prefix in 21.1 26.3; do
+              latest=$(maven_versions "$N/net/neoforged/neoforge/maven-metadata.xml" \
+                        | grep "^$prefix\." | tail -3 | tr '\n' ' ')
+              echo "  $prefix.x newest three: ${latest:-none}"
+            done
+            echo
+            echo "### fabric-api: newest for the two targets"
+            for target in "1.21.1" "26.3"; do
+              newest=$(maven_versions "$F/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml" \
+                        | grep -- "+$target\$" | tail -3 | tr '\n' ' ')
+              echo "  +$target newest three: ${newest:-none}"
+            done
+            echo
+            echo "### loom plugin markers: newest five"
+            echo "  net.fabricmc.fabric-loom: $(maven_versions "$P/net/fabricmc/fabric-loom/net.fabricmc.fabric-loom.gradle.plugin/maven-metadata.xml" | tail -5 | tr '\n' ' ')"
+            echo "  net.fabricmc.fabric-loom-remap: $(maven_versions "$P/net/fabricmc/fabric-loom-remap/net.fabricmc.fabric-loom-remap.gradle.plugin/maven-metadata.xml" | tail -5 | tr '\n' ' ')"
+          } >> "$out"
 
           wc -c "$out"
-          python3 tools/ci_annotate.py notice "upstream versions" "$out" 8000
+          python3 tools/ci_annotate.py notice "versions" "$out" 6000
       - name: Upload the probe output
         uses: actions/upload-artifact@v4
         with:
