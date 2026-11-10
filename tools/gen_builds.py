@@ -33,7 +33,7 @@ FABRIC_LOADER = "0.20.1"
 LOOM = "1.19-SNAPSHOT"
 # fabric-26.3 overrides this: Loom 1.19.4 fails to set up the unobfuscated 26.3 jars
 # (ProviderNotFoundException: Provider "jar" not found), even for a single subproject.
-FABRIC_GRADLE = "9.8.2"
+FABRIC_GRADLE = "9.9.0"
 # Gradle 8.14.5 fails on JDK 25: its bundled Kotlin compiler raises
 # "IllegalArgumentException: 25.0.5". KotlinForForge 6.x pairs moddev 2.0.71 with
 # gradle-9.6.1, so that combination is used here.

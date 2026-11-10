@@ -45,8 +45,8 @@ public final class PyFmClient implements ClientModInitializer {
         ClientTickEvents.START_CLIENT_TICK.register(
                 client -> PythonEvents.dispatch(PythonEvents.CLIENT_TICK, client));
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
-                PythonEvents.dispatch(PythonEvents.PLAYER_JOIN, handler.localPlayer));
+                PythonEvents.dispatch(PythonEvents.PLAYER_JOIN, client.player));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
-                PythonEvents.dispatch(PythonEvents.PLAYER_LEAVE, handler.localPlayer));
+                PythonEvents.dispatch(PythonEvents.PLAYER_LEAVE, client.player));
     }
 }

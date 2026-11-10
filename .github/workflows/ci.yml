@@ -63,12 +63,12 @@ jobs:
           - platform: fabric-1.21.1
             gradle_java: "25"
             java: "21"
-            gradle: "9.8.2"
+            gradle: "9.9.0"
             loader: fabric
           - platform: fabric-26.3
             gradle_java: "25"
             java: "25"
-            gradle: "9.8.2"
+            gradle: "9.9.0"
             loader: fabric
           - platform: neoforge-1.21.1
             gradle_java: "25"
@@ -198,11 +198,11 @@ jobs:
           - platform: fabric-1.21.1
             mode: dedicated-server
             java: "25"
-            gradle: "9.8.2"
+            gradle: "9.9.0"
           - platform: fabric-26.3
             mode: dedicated-server
             java: "25"
-            gradle: "9.8.2"
+            gradle: "9.9.0"
           - platform: neoforge-1.21.1
             mode: dedicated-server
             java: "25"

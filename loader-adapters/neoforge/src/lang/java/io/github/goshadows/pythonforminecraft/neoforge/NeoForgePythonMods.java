@@ -53,7 +53,7 @@ public final class NeoForgePythonMods {
 
     /** The side this JVM runs. */
     public static PyFm.Side currentSide() {
-        return FMLEnvironment.getDist() == Dist.CLIENT ? PyFm.Side.CLIENT : PyFm.Side.SERVER;
+        return FMLEnvironment.dist == Dist.CLIENT ? PyFm.Side.CLIENT : PyFm.Side.SERVER;
     }
 
     /** Parses the mod properties of *info*. */

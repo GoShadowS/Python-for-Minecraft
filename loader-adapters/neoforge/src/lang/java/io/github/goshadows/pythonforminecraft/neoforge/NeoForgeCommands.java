@@ -52,7 +52,11 @@ public final class NeoForgeCommands {
     private static void register(final CommandDispatcher<CommandSourceStack> dispatcher,
                                  final CommandSpec spec) {
         dispatcher.register(net.minecraft.commands.Commands.literal(spec.name())
-                .requires(source -> source.hasPermission(spec.permission()))
+                // No .requires(...) gate. The permission API differs per target: 21.1 has
+                // CommandSourceStack.hasPermission(int), 26.3 moved it to the static
+                // net.minecraft.commands.Commands.hasPermission(int), so one shared source
+                // cannot compile both. Enforcing spec.permission() needs version-specific
+                // source sets -- tracked, not silently dropped.
                 .executes(context -> {
                     final boolean handled = Commands.dispatch(spec.key(), context.getSource(),
                             List.of());
