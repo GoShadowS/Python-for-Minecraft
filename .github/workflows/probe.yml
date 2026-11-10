@@ -24,7 +24,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Probe every pinned dependency
         run: |
-          set -uo pipefail
+          # GitHub Actions runs steps with `bash -eo pipefail` by default, and a `grep`
+          # with no match returns 1 -- that would abort the probe on the first repository
+          # that simply has no matching version. Errors are recorded, not fatal.
+          set +e
           out=probe.txt
           : > "$out"
 
