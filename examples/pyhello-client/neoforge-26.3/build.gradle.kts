@@ -1,7 +1,7 @@
 // Example Python mod: a normal NeoForge mod jar whose modLoader is
 // "pythonforminecraft", so it contains no Java code at all.
 plugins {
-    id("net.neoforged.moddevgradle") version "2.0.90"
+    id("net.neoforged.moddev") version "2.0.71"
 }
 
 val neoforge_version: String by project

@@ -1,5 +1,5 @@
 plugins {
-    id("net.neoforged.moddevgradle")
+    id("net.neoforged.moddev")
     alias(libs.plugins.shadow)
 }
 

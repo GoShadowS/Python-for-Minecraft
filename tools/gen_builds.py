@@ -20,17 +20,24 @@ import textwrap
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 PYFM_VERSION = "1.0.0"
-GRAALPY = "25.5.5"
+# Maven publishes GraalPy under a four-part version: the GraalVM release
+# "graal-25.5.5" is artifact 25.5.5.0.3 (verified against
+# repo1.maven.org/maven2/org/graalvm/polyglot/*/maven-metadata.xml).
+GRAALPY = "25.5.5.0.3"
 SLF4J = "2.0.17"
 JUNIT = "5.11.4"
 SHADOW = "9.2.2"
 FABRIC_LOADER = "0.20.1"
-LOOM = "1.19"
+# FabricMC/fabric-example-mod pins loom_version=1.19-SNAPSHOT on both the
+# 1.21.1 and the 26.3 branch; there is no released "1.19" artifact.
+LOOM = "1.19-SNAPSHOT"
 FABRIC_GRADLE = "9.8.2"
 NEOFORGE_GRADLE = "8.14.5"
-# TODO(verify): the exact ModDevGradle build number is published on
-# https://projects.neoforged.net/neoforged/ModDevGradle and could not be resolved here.
-MODDEVGRADLE = "2.0.90"
+# ModDevGradle's plugin id is "net.neoforged.moddev" (NOT "moddevgradle") and the
+# version is taken from thedarkcolour/KotlinForForge@6.x gradle/libs.versions.toml,
+# which pins moddev = "2.0.71".
+MODDEV_PLUGIN_ID = "net.neoforged.moddev"
+MODDEVGRADLE = "2.0.71"
 
 PLATFORMS = {
     "fabric-1.21.1": dict(
@@ -49,7 +56,7 @@ PLATFORMS = {
     ),
     "neoforge-26.3": dict(
         loader="neoforge", minecraft="26.3", java=25, gradle=NEOFORGE_GRADLE,
-        neoforge="26.3.0.100", mc_range="[26.3,26.4)",
+        neoforge="26.3.0.102", mc_range="[26.3,26.4)",
     ),
 }
 
@@ -569,7 +576,7 @@ def neoforge_root(name: str, cfg: dict) -> None:
     write(f"platforms/{name}/build.gradle.kts", f"""
         // Minecraft {cfg['minecraft']} on NeoForge. Java {cfg['java']}.
         plugins {{
-            id("net.neoforged.moddevgradle") version "{MODDEVGRADLE}" apply false
+            id("{MODDEV_PLUGIN_ID}") version "{MODDEVGRADLE}" apply false
             alias(libs.plugins.shadow) apply false
         }}
 
@@ -690,7 +697,7 @@ neoForge {
         extra = """    compileOnly(project(":pyfm-core"))
     compileOnly(libs.bundles.graalpy)"""
         python_resources = ""
-    plugins = ('id("net.neoforged.moddevgradle")\n    alias(libs.plugins.shadow)'
+    plugins = ('id("%s")\n    alias(libs.plugins.shadow)' % MODDEV_PLUGIN_ID
                if sub != "pyfm-core" else
                '`java-library`\n    alias(libs.plugins.shadow)')
     write(f"platforms/{name}/{sub}/build.gradle.kts", """
