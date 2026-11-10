@@ -117,11 +117,15 @@ jobs:
             echo "### diagnostic: :pyfm-core:compileJava with --configure-on-demand"
           } >> build.log
           gradle --no-daemon --configure-on-demand --stacktrace --console=plain \
+            -I "${GITHUB_WORKSPACE}/tools/diag.init.gradle" \
             :pyfm-core:compileJava 2>&1 | tee -a build.log
           status=${PIPESTATUS[0]}
-          echo "diagnostic :pyfm-core:compileJava alone -> exit $status" > diag.txt
+          {
+            echo "diagnostic :pyfm-core:compileJava alone -> exit $status"
+            grep '^DIAG' build.log
+          } > diag.txt
           python3 "${GITHUB_WORKSPACE}/tools/ci_annotate.py" notice \
-            "diagnostic pyfm-core alone: ${{ matrix.platform }}" diag.txt 2000
+            "diagnostic pyfm-core alone: ${{ matrix.platform }}" diag.txt 3000
           if [ "$status" -ne 0 ]; then
             bash "${GITHUB_WORKSPACE}/tools/ci_extract.sh" build.log \
               "diagnostic failure: ${{ matrix.platform }}"

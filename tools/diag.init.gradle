@@ -1,0 +1,22 @@
+// Runs inside the Gradle JVM before any project is configured -- the same JVM Fabric Loom
+// later uses to set up Minecraft. fabric-26.3 fails there with
+// "ProviderNotFoundException: Provider \"jar\" not found" from
+// tiny-remapper FileSystemReference.open -> FileSystems.newFileSystem, so this records
+// whether the jar FileSystem provider is reachable from that JVM at all and then tries to
+// use it on a real empty jar.
+def schemes = java.nio.file.spi.FileSystemProvider.installedProviders()*.scheme
+println "DIAG systemClassLoader=" + ClassLoader.systemClassLoader
+println "DIAG threadContextClassLoader=" + Thread.currentThread().contextClassLoader
+println "DIAG installed FileSystemProvider schemes: " + schemes
+
+def tmp = java.io.File.createTempFile("pyfm-diag", ".jar")
+new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(tmp)).close()
+try {
+    def fs = java.nio.file.FileSystems.newFileSystem(
+            java.net.URI.create("jar:" + tmp.toURI()), [:])
+    println "DIAG FileSystems.newFileSystem(jar:...) -> OK " + fs
+    fs.close()
+} catch (Throwable t) {
+    println "DIAG FileSystems.newFileSystem(jar:...) -> FAILED " + t
+}
+tmp.delete()

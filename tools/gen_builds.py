@@ -31,6 +31,8 @@ FABRIC_LOADER = "0.20.1"
 # FabricMC/fabric-example-mod pins loom_version=1.19-SNAPSHOT on both the
 # 1.21.1 and the 26.3 branch; there is no released "1.19" artifact.
 LOOM = "1.19-SNAPSHOT"
+# fabric-26.3 overrides this: Loom 1.19.4 fails to set up the unobfuscated 26.3 jars
+# (ProviderNotFoundException: Provider "jar" not found), even for a single subproject.
 FABRIC_GRADLE = "9.8.2"
 # Gradle 8.14.5 fails on JDK 25: its bundled Kotlin compiler raises
 # "IllegalArgumentException: 25.0.5". KotlinForForge 6.x pairs moddev 2.0.71 with
@@ -51,6 +53,7 @@ PLATFORMS = {
     "fabric-26.3": dict(
         loader="fabric", minecraft="26.3", java=25, gradle=FABRIC_GRADLE,
         loom_plugin="net.fabricmc.fabric-loom", use_mappings=False,
+        loom="1.20.0-alpha.27",
         fabric_api="0.165.2+26.3", mc_range="~26.3",
     ),
     "neoforge-1.21.1": dict(
@@ -323,7 +326,7 @@ def fabric_properties(name: str, cfg: dict) -> None:
         org.gradle.parallel=false
 
         # Keep loom_version in sync with the plugins block of build.gradle.kts.
-        loom_version={LOOM}
+        loom_version={cfg.get("loom", LOOM)}
         minecraft_version={cfg['minecraft']}
         loader_version={FABRIC_LOADER}
         fabric_api_version={cfg['fabric_api']}
@@ -339,7 +342,7 @@ def fabric_root(name: str, cfg: dict) -> None:
         // Minecraft {cfg['minecraft']} on Fabric. Java {cfg['java']}.
         // {"Mojang mappings + remapping." if cfg['use_mappings'] else "The game is unobfuscated, so no mappings line and no remapping."}
         plugins {{
-            id("{cfg['loom_plugin']}") version "{LOOM}" apply false
+            id("{cfg['loom_plugin']}") version "{cfg.get('loom', LOOM)}" apply false
             alias(libs.plugins.shadow) apply false
         }}
 
