@@ -89,6 +89,9 @@ jobs:
           check "junit-jupiter"          "$M/org/junit/jupiter/junit-jupiter/maven-metadata.xml"                   "5.11.4"
           check "shadow-plugin"          "$P/com/gradleup/shadow/com.gradleup.shadow.gradle.plugin/maven-metadata.xml" "9.2.2"
           check "moddevgradle-portal"    "$P/net/neoforged/moddevgradle/net.neoforged.moddevgradle.gradle.plugin/maven-metadata.xml" "2.0.71"
+          check "moddev-plugin-marker"   "$P/net/neoforged/moddev/net.neoforged.moddev.gradle.plugin/maven-metadata.xml"            "2.0.71"
+          check "neoforge-bus"           "$N/net/neoforged/bus/maven-metadata.xml"                                                  "-"
+          check "fancymodloader-loader"  "$N/net/neoforged/fancymodloader/loader/maven-metadata.xml"                                "-"
           check "moddevgradle-neoforged" "$N/net/neoforged/moddevgradle/net.neoforged.moddevgradle.gradle.plugin/maven-metadata.xml" "2.0.71"
           check "neoforge"               "$N/net/neoforged/neoforge/maven-metadata.xml"                            "-"
           check "neoforgespi"            "$N/net/neoforged/neoforgespi/maven-metadata.xml"                         "-"
@@ -109,6 +112,9 @@ jobs:
                         | grep -- "+$target\$" | tail -3 | tr '\n' ' ')
               echo "  +$target newest three: ${newest:-none}"
             done
+            echo
+            echo "### moddev plugin marker: newest ten (26.3 support starts after 2.0.71)"
+            echo "  net.neoforged.moddev: $(maven_versions "$P/net/neoforged/moddev/net.neoforged.moddev.gradle.plugin/maven-metadata.xml" | tail -10 | tr '\n' ' ')"
             echo
             echo "### loom plugin markers: newest five"
             echo "  net.fabricmc.fabric-loom: $(maven_versions "$P/net/fabricmc/fabric-loom/net.fabricmc.fabric-loom.gradle.plugin/maven-metadata.xml" | tail -5 | tr '\n' ' ')"

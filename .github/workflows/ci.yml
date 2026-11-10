@@ -103,6 +103,29 @@ jobs:
             gradle --version 2>&1 | grep -E "Gradle|Kotlin|JVM|Launcher"
             echo
           } > build.log
+      # fabric-26.3 fails inside Loom's Minecraft setup with
+      # ProviderNotFoundException: Provider "jar" not found, while fabric-1.21.1 with the
+      # same Loom and JVM does not. This step configures and compiles one subproject on its
+      # own (--configure-on-demand), which separates "Loom cannot handle this Minecraft
+      # version" from "three subprojects sharing one Loom cache interfere".
+      - name: "Diagnostic: set up Minecraft for :pyfm-core alone"
+        working-directory: platforms/${{ matrix.platform }}
+        continue-on-error: true
+        run: |
+          set +e
+          {
+            echo "### diagnostic: :pyfm-core:compileJava with --configure-on-demand"
+          } >> build.log
+          gradle --no-daemon --configure-on-demand --stacktrace --console=plain \
+            :pyfm-core:compileJava 2>&1 | tee -a build.log
+          status=${PIPESTATUS[0]}
+          echo "diagnostic :pyfm-core:compileJava alone -> exit $status" > diag.txt
+          python3 "${GITHUB_WORKSPACE}/tools/ci_annotate.py" notice \
+            "diagnostic pyfm-core alone: ${{ matrix.platform }}" diag.txt 2000
+          if [ "$status" -ne 0 ]; then
+            bash "${GITHUB_WORKSPACE}/tools/ci_extract.sh" build.log \
+              "diagnostic failure: ${{ matrix.platform }}"
+          fi
       - name: Build the three Python-for-Minecraft components
         working-directory: platforms/${{ matrix.platform }}
         run: |

@@ -739,7 +739,10 @@ neoForge {
         }
         %(mdg)s
         dependencies {
-            compileOnly(libs.slf4j.api)
+            // No explicit slf4j-api here: net.neoforged:neoforge already puts
+            // org.slf4j:slf4j-api:{strictly 2.0.9} on the compile classpath through
+            // minecraft-dependencies, and a strict constraint cannot be overridden --
+            // pinning 2.0.17 made resolution fail outright (run 42842100723).
         %(extra)s
         }
 
