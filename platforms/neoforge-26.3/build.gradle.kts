@@ -1,6 +1,6 @@
 // Minecraft 26.3 on NeoForge. Java 25.
 plugins {
-    id("net.neoforged.moddev") version "2.0.71" apply false
+    id("net.neoforged.moddev") version "2.0.148" apply false
     alias(libs.plugins.shadow) apply false
 }
 

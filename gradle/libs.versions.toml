@@ -10,7 +10,7 @@ junit = "5.11.4"
 shadow = "9.2.2"
 fabric-loader = "0.20.1"
 loom = "1.19-SNAPSHOT"
-moddevgradle = "2.0.71"
+moddevgradle = "2.0.148"
 
 [libraries]
 polyglot = { module = "org.graalvm.polyglot:polyglot", version.ref = "graalpy" }

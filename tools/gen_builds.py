@@ -40,7 +40,7 @@ NEOFORGE_GRADLE = "9.6.1"
 # version is taken from thedarkcolour/KotlinForForge@6.x gradle/libs.versions.toml,
 # which pins moddev = "2.0.71".
 MODDEV_PLUGIN_ID = "net.neoforged.moddev"
-MODDEVGRADLE = "2.0.71"
+MODDEVGRADLE = "2.0.148"
 
 PLATFORMS = {
     "fabric-1.21.1": dict(
