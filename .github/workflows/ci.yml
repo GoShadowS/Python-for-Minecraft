@@ -89,11 +89,8 @@ jobs:
           gradle --no-daemon --stacktrace --console=plain build 2>&1 | tee build.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
-            # The CI log file itself is served from a host that is not reachable from the
-            # development sandbox, so the tail is published as an annotation instead.
-            tail -c 60000 build.log > build.tail.log
-            python3 "${GITHUB_WORKSPACE}/tools/ci_annotate.py" error \
-              "build failure: ${{ matrix.platform }}" build.tail.log 8000
+            bash "${GITHUB_WORKSPACE}/tools/ci_extract.sh" build.log \
+              "build failure: ${{ matrix.platform }}"
           fi
           exit "$status"
       - name: Build the example Python mods
@@ -103,9 +100,8 @@ jobs:
           gradle --no-daemon --stacktrace --console=plain build 2>&1 | tee build.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
-            tail -c 60000 build.log > build.tail.log
-            python3 "${GITHUB_WORKSPACE}/tools/ci_annotate.py" error \
-              "example build failure: pyhello-client ${{ matrix.platform }}" build.tail.log 8000
+            bash "${GITHUB_WORKSPACE}/tools/ci_extract.sh" build.log \
+              "example build failure: pyhello-client ${{ matrix.platform }}"
           fi
           exit "$status"
       - name: Build the common example Python mod
@@ -115,9 +111,8 @@ jobs:
           gradle --no-daemon --stacktrace --console=plain build 2>&1 | tee build.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
-            tail -c 60000 build.log > build.tail.log
-            python3 "${GITHUB_WORKSPACE}/tools/ci_annotate.py" error \
-              "example build failure: pyhello-common ${{ matrix.platform }}" build.tail.log 8000
+            bash "${GITHUB_WORKSPACE}/tools/ci_extract.sh" build.log \
+              "example build failure: pyhello-common ${{ matrix.platform }}"
           fi
           exit "$status"
       - name: Inspect the produced jars
