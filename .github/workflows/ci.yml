@@ -90,11 +90,24 @@ jobs:
         with:
           gradle-version: ${{ matrix.gradle }}
           cache-read-only: false
+      - name: Record the toolchain actually in use
+        working-directory: platforms/${{ matrix.platform }}
+        run: |
+          set +e
+          {
+            echo "### toolchain"
+            java -version 2>&1
+            echo "JAVA_HOME=${JAVA_HOME}"
+            java --list-modules 2>/dev/null | grep -i zipfs \
+              || echo "jdk.zipfs: NOT PRESENT in this JVM"
+            gradle --version 2>&1 | grep -E "Gradle|Kotlin|JVM|Launcher"
+            echo
+          } > build.log
       - name: Build the three Python-for-Minecraft components
         working-directory: platforms/${{ matrix.platform }}
         run: |
           set +e
-          gradle --no-daemon --stacktrace --console=plain build 2>&1 | tee build.log
+          gradle --no-daemon --stacktrace --console=plain build 2>&1 | tee -a build.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
             bash "${GITHUB_WORKSPACE}/tools/ci_extract.sh" build.log \
@@ -105,7 +118,7 @@ jobs:
         working-directory: examples/pyhello-client/${{ matrix.platform }}
         run: |
           set +e
-          gradle --no-daemon --stacktrace --console=plain build 2>&1 | tee build.log
+          gradle --no-daemon --stacktrace --console=plain build 2>&1 | tee -a build.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
             bash "${GITHUB_WORKSPACE}/tools/ci_extract.sh" build.log \
@@ -116,7 +129,7 @@ jobs:
         working-directory: examples/pyhello-common/${{ matrix.platform }}
         run: |
           set +e
-          gradle --no-daemon --stacktrace --console=plain build 2>&1 | tee build.log
+          gradle --no-daemon --stacktrace --console=plain build 2>&1 | tee -a build.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
             bash "${GITHUB_WORKSPACE}/tools/ci_extract.sh" build.log \

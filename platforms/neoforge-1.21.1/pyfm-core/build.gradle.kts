@@ -1,17 +1,19 @@
+import java.util.jar.JarFile
+
 plugins {
     `java-library`
     alias(libs.plugins.shadow)
 }
 
-val neoforge_version: String by project
-val java_version: String by project
+val neoforge_version: String = project.property("neoforge_version") as String
+val java_version: String = project.property("java_version") as String
 
 base {
     archivesName.set("pythonforminecraft-core-neoforge-1.21.1")
 }
 
 // See the fabric builds: shaded dependencies travel inside the core jar.
-val shade: Configuration by configurations.creating
+val shade: Configuration = configurations.create("shade")
 
 repositories {
     maven {
@@ -80,10 +82,10 @@ tasks.register("verifyPythonRuntime") {
     doLast {
         val file = output.get().asFile
         val required = listOf(
-        "META-INF/services/com.oracle.truffle.api.TruffleLanguage$Provider",
+        "META-INF/services/com.oracle.truffle.api.TruffleLanguage\$Provider",
         "pythonforminecraft/pfm/__init__.py",
         )
-        java.util.jar.JarFile(file).use { jar ->
+        JarFile(file).use { jar ->
             val missing = required.filter { jar.getJarEntry(it) == null }
             if (missing.isNotEmpty()) {
                 throw GradleException("${file.name} is missing required entries: $missing")

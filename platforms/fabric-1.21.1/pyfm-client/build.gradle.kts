@@ -3,10 +3,10 @@ plugins {
     alias(libs.plugins.shadow)
 }
 
-val minecraft_version: String by project
-val loader_version: String by project
-val fabric_api_version: String by project
-val java_version: String by project
+val minecraft_version: String = project.property("minecraft_version") as String
+val loader_version: String = project.property("loader_version") as String
+val fabric_api_version: String = project.property("fabric_api_version") as String
+val java_version: String = project.property("java_version") as String
 
 base {
     archivesName.set("pythonforminecraft-client-fabric-1.21.1")
@@ -15,7 +15,7 @@ base {
 // Dependencies that are shaded into the artifact instead of being resolved at
 // runtime. Fabric and NeoForge both only load jars that are mods/libraries, so the
 // Python runtime has to travel inside the core jar.
-val shade: Configuration by configurations.creating
+val shade: Configuration = configurations.create("shade")
 
 loom {
     // No split source sets: this build has one side per subproject by design.

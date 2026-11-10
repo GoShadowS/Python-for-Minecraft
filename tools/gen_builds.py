@@ -75,10 +75,10 @@ tasks.register("verifyPythonRuntime") {
     doLast {
         val file = output.get().asFile
         val required = listOf(
-            "META-INF/services/com.oracle.truffle.api.TruffleLanguage$Provider",
+            "META-INF/services/com.oracle.truffle.api.TruffleLanguage\$Provider",
             "pythonforminecraft/pfm/__init__.py",
         )
-        java.util.jar.JarFile(file).use { jar ->
+        JarFile(file).use { jar ->
             val missing = required.filter { jar.getJarEntry(it) == null }
             if (missing.isNotEmpty()) {
                 throw GradleException("${file.name} is missing required entries: $missing")
@@ -239,10 +239,13 @@ def core_build() -> None:
         version = "{PYFM_VERSION}"
 
         java {{
-            toolchain {{
-                languageVersion.set(JavaLanguageVersion.of(21))
-            }}
             withSourcesJar()
+        }}
+
+        // No toolchain block: it would demand a specific installed JDK. Java 21 is
+        // the bytecode floor for every supported combination, so release is enough.
+        tasks.withType<JavaCompile>().configureEach {{
+            options.release.set(21)
         }}
 
         repositories {{
@@ -459,10 +462,10 @@ tasks.build { dependsOn(tasks.shadowJar) }"""
             alias(libs.plugins.shadow)
         }
 
-        val minecraft_version: String by project
-        val loader_version: String by project
-        val fabric_api_version: String by project
-        val java_version: String by project
+        val minecraft_version: String = project.property("minecraft_version") as String
+        val loader_version: String = project.property("loader_version") as String
+        val fabric_api_version: String = project.property("fabric_api_version") as String
+        val java_version: String = project.property("java_version") as String
 
         base {
             archivesName.set("%(artifact)s")
@@ -471,7 +474,7 @@ tasks.build { dependsOn(tasks.shadowJar) }"""
         // Dependencies that are shaded into the artifact instead of being resolved at
         // runtime. Fabric and NeoForge both only load jars that are mods/libraries, so the
         // Python runtime has to travel inside the core jar.
-        val shade: Configuration by configurations.creating
+        val shade: Configuration = configurations.create("shade")
 
         loom {
             // No split source sets: this build has one side per subproject by design.
@@ -700,19 +703,19 @@ neoForge {
                if sub != "pyfm-core" else
                '`java-library`\n    alias(libs.plugins.shadow)')
     write(f"platforms/{name}/{sub}/build.gradle.kts", """
-        plugins {
+        %(imports)splugins {
             %(plugins)s
         }
 
-        val neoforge_version: String by project
-        val java_version: String by project
+        val neoforge_version: String = project.property("neoforge_version") as String
+        val java_version: String = project.property("java_version") as String
 
         base {
             archivesName.set("%(artifact)s")
         }
 
         // See the fabric builds: shaded dependencies travel inside the core jar.
-        val shade: Configuration by configurations.creating
+        val shade: Configuration = configurations.create("shade")
 
         repositories {
             maven {
@@ -754,6 +757,7 @@ neoForge {
         %(verify)s
         """ % {
             "plugins": plugins,
+            "imports": ("import java.util.jar.JarFile\n\n" if sub == "pyfm-core" else ""),
             "verify": (VERIFY_TASK if sub == "pyfm-core" else ""),
             "artifact": artifact,
             "mdg": mdg,

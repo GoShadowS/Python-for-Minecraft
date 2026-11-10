@@ -18,6 +18,9 @@ import textwrap
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 PYFM_VERSION = "1.0.0"
+# Keep in sync with gen_builds.LOOM. The version probe in CI showed that a bare
+# "1.19" is not published on maven.fabricmc.net; only the SNAPSHOT is.
+LOOM = "1.19-SNAPSHOT"
 
 PLATFORMS = {
     "fabric-1.21.1": dict(loader="fabric", minecraft="1.21.1", java=21, gradle="9.8.2",
@@ -258,10 +261,10 @@ def fabric_build(name: str, platform: str, mod: dict) -> None:
             id("%(loom_plugin)s") version "%(loom)s"
         }
 
-        val minecraft_version: String by project
-        val loader_version: String by project
-        val fabric_api_version: String by project
-        val java_version: String by project
+        val minecraft_version: String = project.property("minecraft_version") as String
+        val loader_version: String = project.property("loader_version") as String
+        val fabric_api_version: String = project.property("fabric_api_version") as String
+        val java_version: String = project.property("java_version") as String
 
         base {
             archivesName.set("%(mod_id)s-fabric-%(minecraft)s")
@@ -310,12 +313,7 @@ def fabric_build(name: str, platform: str, mod: dict) -> None:
             options.release.set(java_version.toInt())
         }
 
-        java {
-            toolchain {
-                languageVersion.set(JavaLanguageVersion.of(java_version.toInt()))
-            }
-        }
-        """ % dict(cfg, loom_plugin=cfg["loom_plugin"], loom="1.19", mappings=mappings,
+        """ % dict(cfg, loom_plugin=cfg["loom_plugin"], loom=LOOM, mappings=mappings,
                    dep_config=dep_config, mod_id=mod["mod_id"], package=mod["package"]))
 
     entrypoints = {}
@@ -413,8 +411,8 @@ def neoforge_build(name: str, platform: str, mod: dict) -> None:
             id("net.neoforged.moddev") version "2.0.71"
         }
 
-        val neoforge_version: String by project
-        val java_version: String by project
+        val neoforge_version: String = project.property("neoforge_version") as String
+        val java_version: String = project.property("java_version") as String
 
         base {
             archivesName.set("%(mod_id)s-neoforge-%(minecraft)s")
@@ -451,11 +449,6 @@ def neoforge_build(name: str, platform: str, mod: dict) -> None:
             options.release.set(java_version.toInt())
         }
 
-        java {
-            toolchain {
-                languageVersion.set(JavaLanguageVersion.of(java_version.toInt()))
-            }
-        }
         """ % dict(cfg, mod_id=mod["mod_id"], package=mod["package"]))
 
     pyfm_keys = {"main": "pyfm_main", "client": "pyfm_client", "server": "pyfm_server"}

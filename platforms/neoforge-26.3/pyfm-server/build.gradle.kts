@@ -3,15 +3,15 @@ plugins {
     alias(libs.plugins.shadow)
 }
 
-val neoforge_version: String by project
-val java_version: String by project
+val neoforge_version: String = project.property("neoforge_version") as String
+val java_version: String = project.property("java_version") as String
 
 base {
     archivesName.set("pythonforminecraft-server-neoforge-26.3")
 }
 
 // See the fabric builds: shaded dependencies travel inside the core jar.
-val shade: Configuration by configurations.creating
+val shade: Configuration = configurations.create("shade")
 
 repositories {
     maven {

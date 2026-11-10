@@ -50,7 +50,7 @@ public final class PythonRuntime implements AutoCloseable {
 
     /**
      * Creates a context for *modId*. Python's own {@code stdout}/{@code stderr} are routed
-     * into the game log through *out*/*err* when provided.
+     * into the game log through {@code out} and {@code err} when provided.
      */
     public static PythonRuntime create(final Engine engine, final String modId,
                                        final PyFmConfig config, final OutputStream out,

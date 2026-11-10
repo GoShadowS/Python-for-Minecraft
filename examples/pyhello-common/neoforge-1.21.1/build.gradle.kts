@@ -4,8 +4,8 @@ plugins {
     id("net.neoforged.moddev") version "2.0.71"
 }
 
-val neoforge_version: String by project
-val java_version: String by project
+val neoforge_version: String = project.property("neoforge_version") as String
+val java_version: String = project.property("java_version") as String
 
 base {
     archivesName.set("pyhello_common-neoforge-1.21.1")
@@ -40,10 +40,4 @@ tasks.processResources {
 
 tasks.withType<JavaCompile>().configureEach {
     options.release.set(java_version.toInt())
-}
-
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(java_version.toInt()))
-    }
 }

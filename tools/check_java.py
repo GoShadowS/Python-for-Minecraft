@@ -298,6 +298,33 @@ def collect_members(type_name: str, index: Dict[str, JavaType], importer: JavaTy
     return members, external
 
 
+def check_comment_terminators(report: "Report") -> None:
+    """Flags a block comment that terminates in the middle of a line.
+
+    `* into the log through *out*/*err*` closes the comment at `*out*/`, and javac then
+    reads the rest of the sentence as code. Nothing else in this checker sees it, because
+    the rest of the file still parses as plausible Java.
+    """
+    for path in java_files():
+        rel = os.path.relpath(path, REPO)
+        in_block = False
+        for line_no, raw in enumerate(open(path, encoding="utf-8").read().splitlines(), 1):
+            text = raw.strip()
+            if in_block:
+                at = text.find("*/")
+                if at >= 0:
+                    if text[at + 2:].strip():
+                        report.error("%s:%d block comment ends mid-line, so javac reads "
+                                     "the rest as code: %s" % (rel, line_no, text))
+                    in_block = False
+            elif text.startswith("/*"):
+                at = text.find("*/", 2)
+                if at < 0:
+                    in_block = True
+                elif text[at + 2:].strip():
+                    report.error("%s:%d block comment ends mid-line: %s" % (rel, line_no, text))
+
+
 def main() -> int:
     report = Report()
     index: Dict[str, JavaType] = {}
@@ -309,6 +336,7 @@ def main() -> int:
             index[parsed.fqcn] = parsed
             types.append(parsed)
     print("java files: %d, declared types: %d" % (len(paths), len(index)))
+    check_comment_terminators(report)
 
     for java_type in types:
         rel = os.path.relpath(java_type.path, REPO)

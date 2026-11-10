@@ -16,6 +16,10 @@ out="$(mktemp)"
   echo "### What went wrong"
   sed -n '/What went wrong/,/^\* Try/p' "$log" | head -60
   echo
+  echo "### Exception chain (each Caused by: plus the frames below it)"
+  awk '/^Caused by:/ {show = 14} show > 0 {print; show--}' "$log" \
+    | grep -vE "^\tat (org\.gradle|java\.base|jdk\.internal|org\.codehaus)" | head -60
+  echo
   echo "### Compiler / script diagnostics"
   grep -nE "error:|e: |warning:|Could not (find|resolve)|Plugin \[id|not found|Unsupported|Caused by:|Execution failed for task|A problem occurred" "$log" \
     | grep -v "^\s*at " | head -60

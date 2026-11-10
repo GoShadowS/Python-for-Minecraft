@@ -6,10 +6,13 @@ group = "io.github.goshadows"
 version = "1.0.0"
 
 java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
-    }
     withSourcesJar()
+}
+
+// No toolchain block: it would demand a specific installed JDK. Java 21 is
+// the bytecode floor for every supported combination, so release is enough.
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(21)
 }
 
 repositories {
