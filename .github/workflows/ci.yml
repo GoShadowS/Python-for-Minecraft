@@ -84,13 +84,42 @@ jobs:
           cache-read-only: false
       - name: Build the three Python-for-Minecraft components
         working-directory: platforms/${{ matrix.platform }}
-        run: gradle --no-daemon --stacktrace build
+        run: |
+          set +e
+          gradle --no-daemon --stacktrace --console=plain build 2>&1 | tee build.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            # The CI log file itself is served from a host that is not reachable from the
+            # development sandbox, so the tail is published as an annotation instead.
+            tail -c 60000 build.log > build.tail.log
+            python3 ../../../tools/ci_annotate.py error \
+              "build failure: ${{ matrix.platform }}" build.tail.log 8000
+          fi
+          exit "$status"
       - name: Build the example Python mods
         working-directory: examples/pyhello-client/${{ matrix.platform }}
-        run: gradle --no-daemon --stacktrace build
+        run: |
+          set +e
+          gradle --no-daemon --stacktrace --console=plain build 2>&1 | tee build.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            tail -c 60000 build.log > build.tail.log
+            python3 ../../../tools/ci_annotate.py error \
+              "example build failure: pyhello-client ${{ matrix.platform }}" build.tail.log 8000
+          fi
+          exit "$status"
       - name: Build the common example Python mod
         working-directory: examples/pyhello-common/${{ matrix.platform }}
-        run: gradle --no-daemon --stacktrace build
+        run: |
+          set +e
+          gradle --no-daemon --stacktrace --console=plain build 2>&1 | tee build.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            tail -c 60000 build.log > build.tail.log
+            python3 ../../../tools/ci_annotate.py error \
+              "example build failure: pyhello-common ${{ matrix.platform }}" build.tail.log 8000
+          fi
+          exit "$status"
       - name: Inspect the produced jars
         run: |
           set -euo pipefail

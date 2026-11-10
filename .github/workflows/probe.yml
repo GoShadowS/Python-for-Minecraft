@@ -1,0 +1,103 @@
+name: Probe
+
+# Resolves the real, currently published versions of every dependency this project pins,
+# straight from the upstream repositories. It exists because the development sandbox has no
+# route to Maven Central, maven.fabricmc.net, maven.neoforged.net, the Gradle Plugin Portal
+# or piston-meta.mojang.com, so no version may be pinned from memory.
+#
+# Results are published as annotations, which stay readable through api.github.com:
+#   gh api repos/<owner>/<repo>/check-runs/<job-id>/annotations
+
+on:
+  workflow_dispatch:
+  push:
+    paths: [".github/workflows/probe.yml", "tools/ci_annotate.py"]
+
+permissions:
+  contents: read
+
+jobs:
+  versions:
+    name: Upstream version probe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe every pinned dependency
+        run: |
+          set -uo pipefail
+          out=probe.txt
+          : > "$out"
+
+          probe () {
+            local label="$1" url="$2" filter="${3:-}"
+            {
+              echo "===== $label"
+              echo "url: $url"
+              local body status
+              body=$(curl -sS --max-time 60 "$url" 2>&1) || { echo "  FETCH FAILED"; echo; return; }
+              if [ -n "$filter" ]; then
+                echo "$body" | grep -E "$filter" | tail -30
+              else
+                echo "$body" | tail -40
+              fi
+              echo
+            } >> "$out"
+          }
+
+          # What this repository currently pins, so the diff is visible.
+          {
+            echo "===== currently pinned in gradle/libs.versions.toml"
+            cat gradle/libs.versions.toml
+            echo
+            echo "===== currently pinned in tools/gen_builds.py (PLATFORMS)"
+            sed -n '/^PLATFORMS/,/^}/p' tools/gen_builds.py
+            echo
+          } >> "$out"
+
+          M=https://repo1.maven.org/maven2
+          F=https://maven.fabricmc.net
+          N=https://maven.neoforged.net/releases
+          P=https://plugins.gradle.org/m2
+
+          probe "Minecraft versions (Mojang piston-meta)" \
+                "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" \
+                '"id":"(1\.21\.1|26\.3)"'
+          probe "net.fabricmc:fabric-loader" \
+                "$F/net/fabricmc/fabric-loader/maven-metadata.xml" "<version>0\.(19|20)"
+          probe "net.fabricmc.fabric-api:fabric-api" \
+                "$F/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml" "1\.21\.1|26\.3"
+          probe "fabric-loom (Fabric maven)" \
+                "$F/net/fabricmc/fabric-loom/maven-metadata.xml" "<version>1\.(1[5-9]|2[0-9])"
+          probe "net.fabricmc:fabric-loom plugin marker (Plugin Portal)" \
+                "$P/net/fabricmc/fabric-loom/net.fabricmc.fabric-loom.gradle.plugin/maven-metadata.xml" "<version>1\.(1[5-9]|2[0-9])"
+          probe "net.fabricmc:fabric-loom-remap plugin marker (Plugin Portal)" \
+                "$P/net/fabricmc/fabric-loom-remap/net.fabricmc.fabric-loom-remap.gradle.plugin/maven-metadata.xml" "<version>"
+          probe "org.graalvm.polyglot:polyglot" \
+                "$M/org/graalvm/polyglot/polyglot/maven-metadata.xml" "<version>2[45]\."
+          probe "org.graalvm.polyglot:python-community" \
+                "$M/org/graalvm/polyglot/python-community/maven-metadata.xml" "<version>2[45]\."
+          probe "org.graalvm.python:python-embedding" \
+                "$M/org/graalvm/python/python-embedding/maven-metadata.xml" "<version>"
+          probe "org.slf4j:slf4j-api" \
+                "$M/org/slf4j/slf4j-api/maven-metadata.xml" "<version>2\.0\."
+          probe "org.junit.jupiter:junit-jupiter" \
+                "$M/org/junit/jupiter/junit-jupiter/maven-metadata.xml" "<version>5\.1[0-9]"
+          probe "com.gradleup.shadow plugin marker" \
+                "$P/com/gradleup/shadow/com.gradleup.shadow.gradle.plugin/maven-metadata.xml" "<version>"
+          probe "net.neoforged.moddevgradle plugin marker" \
+                "$P/net/neoforged/moddevgradle/net.neoforged.moddevgradle.gradle.plugin/maven-metadata.xml" "<version>"
+          probe "net.neoforged:neoforge (NeoForged maven)" \
+                "$N/net/neoforged/neoforge/maven-metadata.xml" "21\.1\.|26\.3\."
+          probe "net.neoforged:neoforgespi (NeoForged maven)" \
+                "$N/net/neoforged/neoforgespi/maven-metadata.xml" "<version>"
+          probe "net.neoforged:fancymodloader (NeoForged maven)" \
+                "$N/net/neoforged/fancymodloader/maven-metadata.xml" "<version>"
+
+          wc -c "$out"
+          python3 tools/ci_annotate.py notice "upstream versions" "$out" 8000
+      - name: Upload the probe output
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-probe
+          path: probe.txt
+          if-no-files-found: error
