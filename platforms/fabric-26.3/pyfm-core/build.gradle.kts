@@ -1,3 +1,5 @@
+import java.util.jar.JarFile
+
 plugins {
     id("net.fabricmc.fabric-loom")
     alias(libs.plugins.shadow)

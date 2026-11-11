@@ -474,7 +474,7 @@ tasks.jar { enabled = false }
 tasks.assemble { dependsOn(tasks.shadowJar) }
 tasks.build { dependsOn(tasks.shadowJar) }"""
     write(f"platforms/{name}/{sub}/build.gradle.kts", """
-        plugins {
+        %(imports)splugins {
             id("%(loom)s")
             alias(libs.plugins.shadow)
         }
@@ -587,6 +587,9 @@ tasks.build { dependsOn(tasks.shadowJar) }"""
             "sources": sources,
             "python_resources": python_resources,
             "final_jar": final_jar,
+            # verifyPythonRuntime opens the jar with java.util.jar.JarFile, and "java"
+            # inside a Kotlin DSL script is the JavaPluginExtension, not the package.
+            "imports": ("import java.util.jar.JarFile\n\n" if sub == "pyfm-core" else ""),
             "verify": (VERIFY_TASK if sub == "pyfm-core" else ""),
         })
 
