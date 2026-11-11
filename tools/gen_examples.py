@@ -419,7 +419,7 @@ def neoforge_build(name: str, platform: str, mod: dict) -> None:
         }
 
         neoForge {
-            version.set(neoforge_version)
+            version = neoforge_version
         }
 
         // This mod has no Java sources at all.

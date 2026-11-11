@@ -162,9 +162,11 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          gradle --no-daemon --console=plain \
+          # Root project + --configure-on-demand: Loom aborts the configuration of
+          # :pyfm-core on fabric-26.3, so a task there never runs.
+          gradle --no-daemon --console=plain --configure-on-demand \
             -I "${GITHUB_WORKSPACE}/tools/jarfs-repro.init.gradle" \
-            :pyfm-core:jarFsRepro 2>&1 | tee -a build.log
+            jarFsRepro 2>&1 | tee -a build.log
           grep '^REPRO' build.log > repro.txt
           python3 "${GITHUB_WORKSPACE}/tools/ci_annotate.py" notice \
             "jar filesystem repro: ${{ matrix.platform }}" repro.txt 4000

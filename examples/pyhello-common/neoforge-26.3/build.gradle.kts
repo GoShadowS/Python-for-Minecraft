@@ -12,7 +12,7 @@ base {
 }
 
 neoForge {
-    version.set(neoforge_version)
+    version = neoforge_version
 }
 
 // This mod has no Java sources at all.

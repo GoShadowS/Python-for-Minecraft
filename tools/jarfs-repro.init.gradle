@@ -1,64 +1,68 @@
-// Minimal reproduction of the fabric-26.3 failure, in the context where it happens.
+// Minimal reproduction of the fabric-26.3 "Provider jar not found" failure.
 //
-// Run 42982945401 gave the full chain:
-//   FileSystemReference.open(FileSystemReference.java:74)
-//   FileSystemReference.openJar(FileSystemReference.java:48)
-//   FileSystemUtil.getJarFileSystem(FileSystemUtil.java:121)
-//   ZipUtils.unpack -> unpackGson -> unpackGsonNullable
-//   FabricModJsonFactory.createFromZipNullable
-//   DeobfSpecContext.getModsFromConfiguration
-// So Loom opens a mod jar to read fabric.mod.json, at configuration time, in the Gradle
-// daemon -- there is no worker process in the chain. An earlier diagnostic already showed
-// that the daemon JVM has the "jar" FileSystemProvider, so this script narrows it further:
-// it compares the two ways of building the jar URI, and calls tiny-remapper itself through
-// the classloader Loom loaded it with.
-gradle.projectsEvaluated {
-    def core = gradle.rootProject.findProject(':pyfm-core')
-    if (core == null) return
-    def bsCl = core.buildscript.classLoader
-    core.tasks.register('jarFsRepro') {
+// The task is registered on the ROOT project and CI runs it with --configure-on-demand,
+// because registering it on :pyfm-core never produced output: Loom fails while configuring
+// that project, so Gradle aborts before any task runs. The root project applies Loom with
+// "apply false", which puts Loom -- and therefore tiny-remapper -- on the root buildscript
+// classpath, so this reproduces the call in the same JVM and classloader without needing
+// Loom's Minecraft setup to succeed.
+//
+// The chain being reproduced (run 42982945401) is
+//   FileSystemReference.open -> openJar -> FileSystemUtil.getJarFileSystem
+//   -> ZipUtils.unpack -> FabricModJsonFactory.createFromZipNullable
+//   -> DeobfSpecContext.getModsFromConfiguration
+gradle.projectsLoaded {
+    def root = gradle.rootProject
+    def bsCl = root.buildscript.classLoader
+    root.tasks.register('jarFsRepro') {
         notCompatibleWithConfigurationCache('diagnostic task')
         doLast {
+            println 'REPRO installed schemes: ' + java.nio.file.spi.FileSystemProvider.installedProviders()*.scheme
+            println 'REPRO TCCL=' + Thread.currentThread().contextClassLoader
+            println 'REPRO systemCL=' + ClassLoader.systemClassLoader
+
+            // A real jar from the dependency cache, shaped like the ones Loom opens.
+            def cache = new File(System.getProperty('user.home'), '.gradle/caches/modules-2')
+            def real = cache.exists() ? cache.listFiles().findResult { null } : null
+            def found = []
+            cache.eachFileRecurse { if (it.name.endsWith('.jar') && found.size() < 1) found << it }
+            def targets = found ? found : []
+
             def tmp = java.io.File.createTempFile('pyfm-repro', '.jar')
             new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(tmp)).close()
+            targets = [tmp] + targets
             try {
-                def path = tmp.toPath()
-                def uri = path.toUri()
-                println 'REPRO file uri=' + uri + ' scheme=' + uri.scheme + ' host=[' + uri.host + ']'
-                println 'REPRO installed schemes: ' + java.nio.file.spi.FileSystemProvider.installedProviders()*.scheme
-                println 'REPRO TCCL=' + Thread.currentThread().contextClassLoader
-                println 'REPRO systemCL=' + ClassLoader.systemClassLoader
-                println 'REPRO jdk.zipfs loaded=' + (java.nio.file.spi.FileSystemProvider.installedProviders()
-                        .find { it.scheme == 'jar' }?.class?.protectionDomain?.codeSource?.location ?: '<boot layer>')
+                targets.each { f ->
+                    def uri = f.toPath().toUri()
+                    println 'REPRO target=' + f.name + ' uri=' + uri + ' host=[' + uri.host + ']'
 
-                // A: URI.create -- the form the earlier diagnostic used, which worked.
-                def a = java.net.URI.create('jar:' + uri)
-                println 'REPRO A uri=' + a + ' scheme=' + a.scheme
-                try {
-                    def fs = java.nio.file.FileSystems.newFileSystem(a, [:])
-                    println 'REPRO A newFileSystem -> OK'
-                    fs.close()
-                } catch (Throwable t) { println 'REPRO A newFileSystem -> FAILED ' + t }
-
-                // B: the four-argument constructor tiny-remapper's toJarUri uses.
-                try {
-                    def b = new java.net.URI('jar:' + uri.scheme, uri.host, uri.path, uri.fragment)
-                    println 'REPRO B uri=' + b + ' scheme=' + b.scheme
+                    // A: URI.create, the form an earlier diagnostic used successfully.
+                    def a = java.net.URI.create('jar:' + uri)
                     try {
-                        def fs = java.nio.file.FileSystems.newFileSystem(b, [:])
-                        println 'REPRO B newFileSystem -> OK'
+                        def fs = java.nio.file.FileSystems.newFileSystem(a, [:])
+                        println 'REPRO A ' + f.name + ' newFileSystem(URI.create) -> OK'
                         fs.close()
-                    } catch (Throwable t) { println 'REPRO B newFileSystem -> FAILED ' + t }
-                } catch (Throwable t) { println 'REPRO B URI construction -> FAILED ' + t }
+                    } catch (Throwable t) { println 'REPRO A ' + f.name + ' -> FAILED ' + t }
 
-                // C: tiny-remapper itself, through Loom's classloader.
-                try {
-                    def cls = Class.forName('net.fabricmc.tinyremapper.FileSystemReference', true, bsCl)
-                    println 'REPRO C tiny-remapper loaded by ' + cls.classLoader
-                    def ref = cls.getMethod('openJar', java.nio.file.Path).invoke(null, path)
-                    println 'REPRO C openJar -> OK'
-                    ref.close()
-                } catch (Throwable t) { println 'REPRO C openJar -> FAILED ' + (t.cause ?: t) }
+                    // B: the four-argument constructor tiny-remapper's toJarUri uses.
+                    try {
+                        def b = new java.net.URI('jar:' + uri.scheme, uri.host, uri.path, uri.fragment)
+                        println 'REPRO B ' + f.name + ' uri=' + b + ' scheme=' + b.scheme
+                        try {
+                            def fs = java.nio.file.FileSystems.newFileSystem(b, [:])
+                            println 'REPRO B ' + f.name + ' newFileSystem(4-arg URI) -> OK'
+                            fs.close()
+                        } catch (Throwable t) { println 'REPRO B ' + f.name + ' -> FAILED ' + t }
+                    } catch (Throwable t) { println 'REPRO B ' + f.name + ' URI build -> FAILED ' + t }
+
+                    // C: tiny-remapper itself, through Loom's classloader.
+                    try {
+                        def cls = Class.forName('net.fabricmc.tinyremapper.FileSystemReference', true, bsCl)
+                        def ref = cls.getMethod('openJar', java.nio.file.Path).invoke(null, f.toPath())
+                        println 'REPRO C ' + f.name + ' FileSystemReference.openJar -> OK (loader ' + cls.classLoader + ')'
+                        ref.close()
+                    } catch (Throwable t) { println 'REPRO C ' + f.name + ' openJar -> FAILED ' + (t.cause ?: t) }
+                }
             } finally {
                 tmp.delete()
             }
