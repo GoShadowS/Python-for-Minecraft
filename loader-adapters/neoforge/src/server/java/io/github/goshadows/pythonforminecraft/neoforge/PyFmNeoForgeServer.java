@@ -8,7 +8,7 @@ import io.github.goshadows.pythonforminecraft.core.Handles;
 import io.github.goshadows.pythonforminecraft.core.PyFm;
 import io.github.goshadows.pythonforminecraft.core.PyFmLifecycle;
 import io.github.goshadows.pythonforminecraft.core.PythonEvents;
-import net.neoforged.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.common.NeoForge;

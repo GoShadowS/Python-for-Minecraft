@@ -39,7 +39,7 @@ dependencies {
 
 sourceSets {
     named("main") {
-        java.setSrcDirs(listOf("../../../loader-adapters/neoforge/src/server/java"))
+        java.setSrcDirs(listOf("../../../loader-adapters/neoforge/src/server/java", "../../../loader-adapters/neoforge/src/compat-26.3/java"))
     }
 }
 

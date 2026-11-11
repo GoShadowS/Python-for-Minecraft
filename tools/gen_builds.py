@@ -672,9 +672,14 @@ def neoforge_mods_toml(name: str, cfg: dict, sub: str, meta: dict) -> None:
 
 def neoforge_sub_build(name: str, cfg: dict, sub: str, meta: dict) -> None:
     artifact = f"{meta['artifact']}-neoforge-{cfg['minecraft']}"
+    # FMLEnvironment exposes the side as a field on FML 4.x (Minecraft 1.21.1) and as a
+    # method on the FML line behind NeoForge 26.3, so side detection lives in one small
+    # class per target and every NeoForge subproject compiles it next to its own sources.
+    compat = "../../../loader-adapters/neoforge/src/compat-%s/java" % cfg["minecraft"]
     if sub == "pyfm-core":
         sources = ('listOf("../../../core/src/main/java", '
-                   '"../../../loader-adapters/neoforge/src/lang/java")')
+                   '"../../../loader-adapters/neoforge/src/lang/java", "%s")'
+                   % compat)
         mdg = """
 neoForge {
     version = neoforge_version
@@ -700,8 +705,9 @@ tasks.processResources {
     }
 }"""
     else:
-        sources = ('listOf("../../../loader-adapters/neoforge/src/%s/java")'
-                   % ("client" if sub == "pyfm-client" else "server"))
+        sources = ('listOf("../../../loader-adapters/neoforge/src/%s/java", '
+                   '"%s")'
+                   % ("client" if sub == "pyfm-client" else "server", compat))
         mdg = """
 neoForge {
     version = neoforge_version

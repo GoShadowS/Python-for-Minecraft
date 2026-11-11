@@ -8,7 +8,7 @@ import io.github.goshadows.pythonforminecraft.core.Handles;
 import io.github.goshadows.pythonforminecraft.core.PyFm;
 import io.github.goshadows.pythonforminecraft.core.PyFmLifecycle;
 import io.github.goshadows.pythonforminecraft.core.PythonEvents;
-import net.neoforged.event.tick.ClientTickEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.GameShuttingDownEvent;

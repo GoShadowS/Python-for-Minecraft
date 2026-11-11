@@ -19,7 +19,7 @@ import io.github.goshadows.pythonforminecraft.core.PythonModInstance;
 import io.github.goshadows.pythonforminecraft.core.PythonModRegistry;
 import io.github.goshadows.pythonforminecraft.core.PythonRuntime;
 import net.neoforged.api.distmarker.Dist;
-import net.neoforged.fml.loading.FMLEnvironment;
+import io.github.goshadows.pythonforminecraft.neoforge.compat.NeoForgeSide;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforgespi.language.IModFileInfo;
 import net.neoforged.neoforgespi.language.IModInfo;
@@ -53,7 +53,7 @@ public final class NeoForgePythonMods {
 
     /** The side this JVM runs. */
     public static PyFm.Side currentSide() {
-        return FMLEnvironment.dist == Dist.CLIENT ? PyFm.Side.CLIENT : PyFm.Side.SERVER;
+        return NeoForgeSide.current() == Dist.CLIENT ? PyFm.Side.CLIENT : PyFm.Side.SERVER;
     }
 
     /** Parses the mod properties of *info*. */

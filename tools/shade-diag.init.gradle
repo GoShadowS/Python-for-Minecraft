@@ -1,0 +1,30 @@
+// Prints what the "shade" configuration of :pyfm-core actually resolves to.
+//
+// shadowJar expands every file in that configuration as a ZIP, and on fabric-1.21.1 it hit
+// "Cannot expand ZIP .../python-community-25.5.5.0.3.pom". Before changing any Gradle
+// attribute this records the ground truth: the attributes the configuration carries, the
+// declared dependencies, every resolved artifact with its type/extension, and the exact file
+// list shadow would consume. Purely diagnostic -- it does not alter the build.
+gradle.projectsEvaluated {
+    def core = gradle.rootProject.findProject(':pyfm-core')
+    if (core == null) return
+    def shade = core.configurations.findByName('shade')
+    if (shade == null) return
+
+    def attrs = shade.attributes.keySet().collect { k -> k.name + '=' + shade.attributes.getAttribute(k) }
+    println 'SHADEDIAG attributes: ' + (attrs.isEmpty() ? '<none>' : attrs)
+
+    def lenient = shade.resolvedConfiguration.lenientConfiguration
+    lenient.allModuleDependencies.each { d ->
+        println 'SHADEDIAG declared: ' + d.group + ':' + d.name + ':' + d.version
+    }
+    lenient.artifacts.each { a ->
+        println 'SHADEDIAG artifact: ' + a.moduleVersion.id + ' file=' + a.file.name +
+                ' type=' + a.type + ' ext=' + a.extension + ' classifier=' + (a.classifier ?: '-')
+    }
+    println 'SHADEDIAG files: ' + shade.files.collect { it.name }
+    def bad = shade.files.findAll { !it.name.endsWith('.jar') }
+    println 'SHADEDIAG non-jar files shadow would try to expand: ' + (bad.isEmpty() ? '<none>' : bad.collect { it.name })
+    def un = lenient.unresolvedModuleDependencies.collect { it.toString() }
+    println 'SHADEDIAG unresolved: ' + (un.isEmpty() ? '<none>' : un)
+}

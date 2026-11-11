@@ -130,6 +130,21 @@ jobs:
             bash "${GITHUB_WORKSPACE}/tools/ci_extract.sh" build.log \
               "diagnostic failure: ${{ matrix.platform }}"
           fi
+      # Read-only diagnostic: shadowJar failed on fabric-1.21.1 with
+      # "Cannot expand ZIP ... python-community-25.5.5.0.3.pom", so record exactly what the
+      # "shade" configuration resolves to before changing any dependency attribute. This
+      # step never masks a build failure -- the build steps below still exit with Gradle's
+      # own status.
+      - name: "Diagnostic: what the shade configuration resolves to"
+        working-directory: platforms/${{ matrix.platform }}
+        continue-on-error: true
+        run: |
+          set +e
+          gradle --no-daemon --console=plain \
+            -I "${GITHUB_WORKSPACE}/tools/shade-diag.init.gradle" help 2>&1 | tee -a build.log
+          grep '^SHADEDIAG' build.log > shade.txt
+          python3 "${GITHUB_WORKSPACE}/tools/ci_annotate.py" notice \
+            "shade resolution: ${{ matrix.platform }}" shade.txt 5000
       - name: Build the three Python-for-Minecraft components
         working-directory: platforms/${{ matrix.platform }}
         run: |

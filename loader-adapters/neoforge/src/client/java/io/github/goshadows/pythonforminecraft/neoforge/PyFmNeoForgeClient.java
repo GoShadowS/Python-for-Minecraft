@@ -8,7 +8,7 @@ import io.github.goshadows.pythonforminecraft.core.PyFm;
 import io.github.goshadows.pythonforminecraft.core.PyFmLifecycle;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.loading.FMLEnvironment;
+import io.github.goshadows.pythonforminecraft.neoforge.compat.NeoForgeSide;
 import net.neoforged.fml.loading.FMLPaths;
 
 /**
@@ -24,7 +24,7 @@ public final class PyFmNeoForgeClient {
     public PyFmNeoForgeClient() {
         PyFmLifecycle.start(FMLPaths.GAMEDIR.get(), NeoForgePythonMods.currentSide());
         NeoForgeCommands.install();
-        if (FMLEnvironment.getDist() == Dist.CLIENT) {
+        if (NeoForgeSide.current() == Dist.CLIENT) {
             ClientHooks.register();
             PyFm.log().info("{} client component ready (Python mods run on the client only "
                     + "unless the server-capable component is installed)", PyFm.LOG_PREFIX);
