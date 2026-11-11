@@ -19,7 +19,9 @@ out="$(mktemp)"
   echo "### Exception chain (each Caused by: plus the frames below it)"
   # Frames are kept in full on purpose: whether the failing call runs in the Gradle daemon
   # or in a worker is exactly what the fabric-26.3 investigation needs.
-  awk '/^Caused by:/ {show = 18} show > 0 {print; show--}' "$log" | head -120
+  # 40 frames, no filtering: JDK frames such as java.nio.file.FileSystems.newFileSystem are
+  # the whole point, and an earlier version dropped them.
+  awk '/^Caused by:/ {show = 40} show > 0 {print; show--}' "$log" | head -200
   echo
   echo "### Compiler / script diagnostics"
   grep -nE "error:|e: |warning:|Could not (find|resolve)|Plugin \[id|not found|Unsupported|Caused by:|Execution failed for task|A problem occurred" "$log" \

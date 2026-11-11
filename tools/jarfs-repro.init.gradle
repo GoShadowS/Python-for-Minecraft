@@ -65,19 +65,82 @@ gradle.projectsLoaded {
                 }
 
                 // C: tiny-remapper itself, through the classloader that loaded Loom.
+                def openJar = { path, label ->
+                    try {
+                        def cls = Class.forName('net.fabricmc.tinyremapper.FileSystemReference',
+                                true, p.buildscript.classLoader)
+                        def ref = cls.getMethod('openJar', java.nio.file.Path)
+                                .invoke(null, path)
+                        println 'REPRO ' + p.path + ' ' + label + ' openJar(' + path + ') -> OK'
+                        ref.close()
+                    } catch (Throwable t) {
+                        def cause = t
+                        while (cause.cause != null) cause = cause.cause
+                        println 'REPRO ' + p.path + ' ' + label + ' openJar(' + path + ') ' +
+                                '-> FAILED ' + cause.class.name + ': ' + cause.message
+                        cause.stackTrace.take(6).each { println 'REPRO   at ' + it }
+                    }
+                }
+                openJar(tmp.toPath(), 'C plain-jar')
+
+                // D: the swallow hypothesis. JDK 21 FileSystems.newFileSystem(URI, Map) is
+                // "return newFileSystem(uri, env, null)", and that overload loops over
+                // installedProviders() doing
+                //     try { return provider.newFileSystem(uri, env); }
+                //     catch (UnsupportedOperationException uoe) { }
+                // before throwing ProviderNotFoundException. So a provider that is installed
+                // but refuses this URI still produces "Provider jar not found". Ask the jar
+                // provider directly and show what it really says.
+                def jarProvider = java.nio.file.spi.FileSystemProvider.installedProviders()
+                        .find { it.scheme == 'jar' }
                 try {
-                    def cls = Class.forName('net.fabricmc.tinyremapper.FileSystemReference',
-                            true, p.buildscript.classLoader)
-                    def ref = cls.getMethod('openJar', java.nio.file.Path)
-                            .invoke(null, tmp.toPath())
-                    println 'REPRO ' + p.path + ' C FileSystemReference.openJar -> OK, ' +
-                            'loaded by ' + cls.classLoader
-                    ref.close()
+                    def fs = jarProvider.newFileSystem(
+                            java.net.URI.create('jar:' + tmp.toPath().toUri()), [:])
+                    println 'REPRO ' + p.path + ' D jarProvider.newFileSystem -> OK'
+                    fs.close()
                 } catch (Throwable t) {
-                    def cause = t
-                    while (cause.cause != null) cause = cause.cause
-                    println 'REPRO ' + p.path + ' C FileSystemReference.openJar -> FAILED ' +
-                            cause + ' @ ' + (cause.stackTrace.find { true } ?: 'n/a')
+                    println 'REPRO ' + p.path + ' D jarProvider.newFileSystem -> ' +
+                            t.class.name + ': ' + t.message
+                }
+
+                // E: a jar nested inside another jar. Minecraft 26.3 is unobfuscated, so
+                // Loom reaches the mods through a different path than on 1.21.1, and a
+                // Path inside an open jar FileSystem is what would make toJarUri build a
+                // "jar:jar:..." URI.
+                def outer = java.io.File.createTempFile('pyfm-outer', '.jar')
+                def zo = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(outer))
+                zo.putNextEntry(new java.util.zip.ZipEntry('inner.jar'))
+                zo.write(tmp.bytes)
+                zo.closeEntry()
+                zo.close()
+                def outerFs = java.nio.file.FileSystems.newFileSystem(
+                        java.net.URI.create('jar:' + outer.toPath().toUri()), [:])
+                try {
+                    def nested = outerFs.getPath('inner.jar')
+                    println 'REPRO ' + p.path + ' E nested uri=' + nested.toUri()
+                    openJar(nested, 'E nested-jar')
+                } catch (Throwable t) {
+                    println 'REPRO ' + p.path + ' E -> ' + t.class.name + ': ' + t.message
+                } finally {
+                    outerFs.close()
+                    outer.delete()
+                }
+
+                // F: the jars Loom is actually iterating when it throws, i.e. the resolved
+                // mod dependencies of this project.
+                ['modImplementation', 'implementation'].each { confName ->
+                    def conf = p.configurations.findByName(confName)
+                    if (conf == null) return
+                    try {
+                        conf.resolvedConfiguration.lenientConfiguration.artifacts
+                                .each { art ->
+                            if (!art.file.name.endsWith('.jar')) return
+                            openJar(art.file.toPath(), 'F ' + confName + ':' + art.file.name)
+                        }
+                    } catch (Throwable t) {
+                        println 'REPRO ' + p.path + ' F ' + confName + ' resolve -> ' +
+                                t.class.name + ': ' + t.message
+                    }
                 }
             } finally {
                 tmp.delete()

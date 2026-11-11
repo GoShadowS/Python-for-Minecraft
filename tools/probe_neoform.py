@@ -91,9 +91,14 @@ def main() -> int:
         if cfg_name is None:
             return 0
         cfg = json.loads(zf.read(cfg_name))
-    neoform = cfg.get("neoform")
-    print(f"  requests neoform: {neoform}")
+    # 26.3.0.102's userdev config.json has no "neoform" key at all; it names "mcp" instead.
+    # Run 42987535382 printed: keys: [ats, binpatcher, binpatches, features, libraries,
+    # mcp, modules, patches, runs, sources, spec, testLibraries, universal].
     print(f"  keys: {sorted(cfg)}")
+    print(f"  mcp section: {json.dumps(cfg.get('mcp'), sort_keys=True)}")
+    print(f"  spec section: {json.dumps(cfg.get('spec'), sort_keys=True)}")
+    mcp = cfg.get("mcp") or {}
+    neoform = mcp.get("version") or cfg.get("neoform")
     if not neoform:
         return 0
     print()
