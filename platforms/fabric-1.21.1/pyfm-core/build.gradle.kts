@@ -97,7 +97,7 @@ tasks.processResources {
 // shadowJar died on "Cannot expand ZIP .../python-community-25.5.5.0.3.pom".
 // Filtering here keeps every real GraalPy jar in the mod jar and drops only the POMs.
 val shadeArtifacts = project.configurations.named("shade").get()
-.incoming.artifactView { it.lenient(false) }.artifacts
+.incoming.artifactView { lenient(false) }.artifacts
 
 tasks.shadowJar {
     configurations = listOf()
