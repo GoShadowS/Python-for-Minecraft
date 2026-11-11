@@ -121,6 +121,12 @@ tasks.build { dependsOn(tasks.shadowJar) }
 // Fails the build when the shaded jar lost something the Python runtime needs:
 // Truffle discovers the Python language through a service file, and the pfm package
 // has to be inside the jar so PyFmRuntimeResources can unpack it.
+//
+// The service interface is com.oracle.truffle.api.provider.TruffleLanguageProvider
+// (truffle/src/com.oracle.truffle.api/src/com/oracle/truffle/api/provider/), confirmed both
+// in the Truffle sources and in the listing of the jar this task inspects. An earlier
+// revision of this check asked for com.oracle.truffle.api.TruffleLanguage$Provider, which
+// does not exist in GraalPy 25.5.5 -- the gate was wrong, the jar was right.
 tasks.register("verifyPythonRuntime") {
     val output = tasks.named("shadowJar").flatMap {
         (it as com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).archiveFile
@@ -128,8 +134,9 @@ tasks.register("verifyPythonRuntime") {
     inputs.files(output)
     doLast {
         val file = output.get().asFile
+        val serviceFile = "META-INF/services/com.oracle.truffle.api.provider.TruffleLanguageProvider"
         val required = listOf(
-        "META-INF/services/com.oracle.truffle.api.TruffleLanguage\$Provider",
+        serviceFile,
         "pythonforminecraft/pfm/__init__.py",
         )
         JarFile(file).use { jar ->
@@ -144,6 +151,15 @@ tasks.register("verifyPythonRuntime") {
                 "\n  com/oracle/graal entries: " + names.count { it.startsWith("com/oracle/graal/") } +
                 "\n  META-INF/services entries (" + services.size + "):\n    " +
                 services.joinToString("\n    ")
+                )
+            }
+            // Existing is not enough: the file has to register the Python language and not
+            // merely some Truffle language that happened to survive the merge.
+            val providers = jar.getInputStream(jar.getJarEntry(serviceFile))
+            .bufferedReader().use { it.readText() }
+            if (!providers.contains("python", ignoreCase = true)) {
+                throw GradleException(
+                "${file.name}: $serviceFile registers no Python provider:\n" + providers
                 )
             }
         }
