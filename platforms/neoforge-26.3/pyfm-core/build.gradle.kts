@@ -132,9 +132,18 @@ tasks.register("verifyPythonRuntime") {
         "pythonforminecraft/pfm/__init__.py",
         )
         JarFile(file).use { jar ->
-            val missing = required.filter { jar.getJarEntry(it) == null }
+            val names = jar.entries().asSequence().map { it.name }.toList()
+            val missing = required.filter { it !in names }
             if (missing.isNotEmpty()) {
-                throw GradleException("${file.name} is missing required entries: $missing")
+                val services = names.filter { it.startsWith("META-INF/services/") }.sorted()
+                throw GradleException(
+                "${file.name} is missing required entries: $missing" +
+                "\n  total entries: " + names.size +
+                "\n  com/oracle/truffle entries: " + names.count { it.startsWith("com/oracle/truffle/") } +
+                "\n  com/oracle/graal entries: " + names.count { it.startsWith("com/oracle/graal/") } +
+                "\n  META-INF/services entries (" + services.size + "):\n    " +
+                services.joinToString("\n    ")
+                )
             }
         }
         logger.lifecycle("verifyPythonRuntime: {} contains the Truffle service " +
