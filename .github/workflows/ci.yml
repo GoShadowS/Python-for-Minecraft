@@ -141,10 +141,20 @@ jobs:
         run: |
           set +e
           gradle --no-daemon --console=plain \
-            -I "${GITHUB_WORKSPACE}/tools/shade-diag.init.gradle" help 2>&1 | tee -a build.log
+            -I "${GITHUB_WORKSPACE}/tools/shade-diag.init.gradle" \
+            :pyfm-core:shadeDiag 2>&1 | tee -a build.log
           grep '^SHADEDIAG' build.log > shade.txt
+          # The POM of the artifact shadow tried to expand is the primary source on whether
+          # it is a real jar or a pom-packaging aggregator.
+          {
+            echo
+            echo "### org.graalvm.polyglot:python-community POM (repo1.maven.org)"
+            curl -sS --max-time 60 \
+              "https://repo1.maven.org/maven2/org/graalvm/polyglot/python-community/25.5.5.0.3/python-community-25.5.5.0.3.pom" \
+              | tr -d '\r' | sed -n '1,120p'
+          } >> shade.txt
           python3 "${GITHUB_WORKSPACE}/tools/ci_annotate.py" notice \
-            "shade resolution: ${{ matrix.platform }}" shade.txt 5000
+            "shade resolution: ${{ matrix.platform }}" shade.txt 6000
       - name: Build the three Python-for-Minecraft components
         working-directory: platforms/${{ matrix.platform }}
         run: |

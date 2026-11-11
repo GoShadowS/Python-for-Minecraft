@@ -1,30 +1,49 @@
-// Prints what the "shade" configuration of :pyfm-core actually resolves to.
+// Registers a :pyfm-core:shadeDiag task that prints what the "shade" configuration resolves
+// to. shadowJar expands every file in that configuration as a ZIP and hit
+// "Cannot expand ZIP .../python-community-25.5.5.0.3.pom", so before trusting any fix this
+// records the ground truth.
 //
-// shadowJar expands every file in that configuration as a ZIP, and on fabric-1.21.1 it hit
-// "Cannot expand ZIP .../python-community-25.5.5.0.3.pom". Before changing any Gradle
-// attribute this records the ground truth: the attributes the configuration carries, the
-// declared dependencies, every resolved artifact with its type/extension, and the exact file
-// list shadow would consume. Purely diagnostic -- it does not alter the build.
+// Resolution happens inside a task, at execution time. Doing it from projectsEvaluated made
+// Gradle fail with "Resolution ... was attempted without an exclusive lock".
 gradle.projectsEvaluated {
     def core = gradle.rootProject.findProject(':pyfm-core')
     if (core == null) return
-    def shade = core.configurations.findByName('shade')
-    if (shade == null) return
+    if (core.configurations.findByName('shade') == null) return
 
-    def attrs = shade.attributes.keySet().collect { k -> k.name + '=' + shade.attributes.getAttribute(k) }
-    println 'SHADEDIAG attributes: ' + (attrs.isEmpty() ? '<none>' : attrs)
+    core.tasks.register('shadeDiag') {
+        def shade = core.configurations.getByName('shade')
+        notCompatibleWithConfigurationCache('diagnostic task')
+        doLast {
+            def attrs = shade.attributes.keySet().collect { k -> k.name + '=' + shade.attributes.getAttribute(k) }
+            println 'SHADEDIAG attributes: ' + (attrs.isEmpty() ? '<none -- legacy default resolution>' : attrs)
 
-    def lenient = shade.resolvedConfiguration.lenientConfiguration
-    lenient.allModuleDependencies.each { d ->
-        println 'SHADEDIAG declared: ' + d.group + ':' + d.name + ':' + d.version
+            try {
+                shade.allDependencies.each { d ->
+                    println 'SHADEDIAG declared: ' + d.group + ':' + d.name + ':' + d.version
+                }
+            } catch (Throwable t) { println 'SHADEDIAG declared: FAILED ' + t }
+
+            try {
+                shade.incoming.resolutionResult.allComponents { c ->
+                    println 'SHADEDIAG component: ' + c.moduleVersion
+                }
+            } catch (Throwable t) { println 'SHADEDIAG component: FAILED ' + t }
+
+            try {
+                def arts = shade.incoming.artifactView { it.lenient(true) }.artifacts
+                arts.artifacts.each { a ->
+                    println 'SHADEDIAG artifact: ' + a.id.componentIdentifier + ' file=' + a.file.name
+                }
+                def fails = arts.failures.collect { it.toString() }
+                println 'SHADEDIAG artifact failures: ' + (fails.isEmpty() ? '<none>' : fails)
+            } catch (Throwable t) { println 'SHADEDIAG artifact: FAILED ' + t }
+
+            try {
+                def files = shade.files
+                println 'SHADEDIAG file count: ' + files.size()
+                def bad = files.findAll { !it.name.endsWith('.jar') }
+                println 'SHADEDIAG non-jar files shadow would try to expand: ' + (bad.isEmpty() ? '<none>' : bad.collect { it.name })
+            } catch (Throwable t) { println 'SHADEDIAG files: FAILED ' + t }
+        }
     }
-    lenient.artifacts.each { a ->
-        println 'SHADEDIAG artifact: ' + a.moduleVersion.id + ' file=' + a.file.name +
-                ' type=' + a.type + ' ext=' + a.extension + ' classifier=' + (a.classifier ?: '-')
-    }
-    println 'SHADEDIAG files: ' + shade.files.collect { it.name }
-    def bad = shade.files.findAll { !it.name.endsWith('.jar') }
-    println 'SHADEDIAG non-jar files shadow would try to expand: ' + (bad.isEmpty() ? '<none>' : bad.collect { it.name })
-    def un = lenient.unresolvedModuleDependencies.collect { it.toString() }
-    println 'SHADEDIAG unresolved: ' + (un.isEmpty() ? '<none>' : un)
 }

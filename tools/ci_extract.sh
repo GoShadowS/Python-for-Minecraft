@@ -17,8 +17,9 @@ out="$(mktemp)"
   sed -n '/What went wrong/,/^\* Try/p' "$log" | head -60
   echo
   echo "### Exception chain (each Caused by: plus the frames below it)"
-  awk '/^Caused by:/ {show = 14} show > 0 {print; show--}' "$log" \
-    | grep -vE "^\tat (org\.gradle|java\.base|jdk\.internal|org\.codehaus)" | head -60
+  # Frames are kept in full on purpose: whether the failing call runs in the Gradle daemon
+  # or in a worker is exactly what the fabric-26.3 investigation needs.
+  awk '/^Caused by:/ {show = 18} show > 0 {print; show--}' "$log" | head -120
   echo
   echo "### Compiler / script diagnostics"
   grep -nE "error:|e: |warning:|Could not (find|resolve)|Plugin \[id|not found|Unsupported|Caused by:|Execution failed for task|A problem occurred" "$log" \

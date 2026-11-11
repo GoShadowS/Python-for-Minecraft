@@ -15,7 +15,32 @@ base {
 // Dependencies that are shaded into the artifact instead of being resolved at
 // runtime. Fabric and NeoForge both only load jars that are mods/libraries, so the
 // Python runtime has to travel inside the core jar.
-val shade: Configuration = configurations.create("shade")
+// Shadow expands every file in this configuration as a ZIP. Created without
+// attributes, Gradle resolves it the legacy way, where the artifact of a
+// pom-packaging module is the POM file itself -- that is why shadowJar died on
+// "Cannot expand ZIP .../python-community-25.5.5.0.3.pom" on every platform.
+// With runtime attributes Gradle matches variants instead, so an aggregator POM
+// contributes its dependencies (real jars) and no artifact of its own.
+val shade: Configuration = configurations.create("shade") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    attributes {
+        // Fully qualified on purpose: this must not depend on the Kotlin DSL
+        // implicit imports being present.
+        attribute(org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE,
+        objects.named(org.gradle.api.attributes.Usage::class.java,
+        org.gradle.api.attributes.Usage.JAVA_RUNTIME))
+        attribute(org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE,
+        objects.named(org.gradle.api.attributes.Category::class.java,
+        org.gradle.api.attributes.Category.LIBRARY))
+        attribute(org.gradle.api.attributes.LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+        objects.named(org.gradle.api.attributes.LibraryElements::class.java,
+        org.gradle.api.attributes.LibraryElements.JAR))
+        attribute(org.gradle.api.attributes.Bundling.BUNDLING_ATTRIBUTE,
+        objects.named(org.gradle.api.attributes.Bundling::class.java,
+        org.gradle.api.attributes.Bundling.EXTERNAL))
+    }
+}
 
 loom {
     // No split source sets: this build has one side per subproject by design.
