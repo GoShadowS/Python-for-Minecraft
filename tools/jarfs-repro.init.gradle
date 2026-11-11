@@ -1,71 +1,95 @@
-// Minimal reproduction of the fabric-26.3 "Provider jar not found" failure.
+// Reproduction of the fabric-26.3 "Provider jar not found" failure, printed from inside the
+// JVM and classloader where it actually happens.
 //
-// The task is registered on the ROOT project and CI runs it with --configure-on-demand,
-// because registering it on :pyfm-core never produced output: Loom fails while configuring
-// that project, so Gradle aborts before any task runs. The root project applies Loom with
-// "apply false", which puts Loom -- and therefore tiny-remapper -- on the root buildscript
-// classpath, so this reproduces the call in the same JVM and classloader without needing
-// Loom's Minecraft setup to succeed.
+// The throwing frame (run 42986520306) is
+//   java.nio.file.ProviderNotFoundException: Provider "jar" not found
+//     at net.fabricmc.tinyremapper.FileSystemReference.open(FileSystemReference.java:74)
+//     at net.fabricmc.tinyremapper.FileSystemReference.openJar(FileSystemReference.java:48)
+//     at net.fabricmc.loom.util.FileSystemUtil.getJarFileSystem(FileSystemUtil.java:121)
+//     at net.fabricmc.loom.util.ZipUtils.unpack(ZipUtils.java:111)
+//     at net.fabricmc.loom.util.fmj.FabricModJsonFactory.createFromZipNullable(...)
+//     at net.fabricmc.loom.configuration.DeobfSpecContext.getModsFromConfiguration(...)
+//     at net.fabricmc.loom.configuration.CompileConfiguration.lambda$run$1(...)
+//     at net.fabricmc.loom.util.gradle.GradleUtils.lambda$afterSuccessfulEvaluation$0(...)
 //
-// The chain being reproduced (run 42982945401) is
-//   FileSystemReference.open -> openJar -> FileSystemUtil.getJarFileSystem
-//   -> ZipUtils.unpack -> FabricModJsonFactory.createFromZipNullable
-//   -> DeobfSpecContext.getModsFromConfiguration
+// ProviderNotFoundException (rather than FileSystemNotFoundException) means the three
+// argument FileSystems.newFileSystem(URI, Map, ClassLoader) overload was used, so the
+// classloader argument is part of the answer. This hook is registered on projectsLoaded,
+// i.e. before any build script is evaluated, which puts its afterEvaluate callback ahead of
+// the one Loom registers -- so the state is printed immediately before Loom throws.
 gradle.projectsLoaded {
-    def root = gradle.rootProject
-    def bsCl = root.buildscript.classLoader
-    root.tasks.register('jarFsRepro') {
-        notCompatibleWithConfigurationCache('diagnostic task')
-        doLast {
-            println 'REPRO installed schemes: ' + java.nio.file.spi.FileSystemProvider.installedProviders()*.scheme
-            println 'REPRO TCCL=' + Thread.currentThread().contextClassLoader
-            println 'REPRO systemCL=' + ClassLoader.systemClassLoader
+    def report = { label ->
+        println 'REPRO ' + label + ' installed schemes: ' +
+                java.nio.file.spi.FileSystemProvider.installedProviders()*.scheme
+    }
+    report('projectsLoaded')
+    println 'REPRO TCCL=' + Thread.currentThread().contextClassLoader
+    println 'REPRO systemCL=' + ClassLoader.getSystemClassLoader()
+    println 'REPRO jdk.zipfs in boot layer=' +
+            java.lang.ModuleLayer.boot().modules().any { it.name == 'jdk.zipfs' }
 
-            // A real jar from the dependency cache, shaped like the ones Loom opens.
-            def cache = new File(System.getProperty('user.home'), '.gradle/caches/modules-2')
-            def real = cache.exists() ? cache.listFiles().findResult { null } : null
-            def found = []
-            cache.eachFileRecurse { if (it.name.endsWith('.jar') && found.size() < 1) found << it }
-            def targets = found ? found : []
+    gradle.allprojects { p ->
+        p.afterEvaluate {
+            println 'REPRO ' + p.path + ' afterEvaluate, schemes=' +
+                    java.nio.file.spi.FileSystemProvider.installedProviders()*.scheme
+            println 'REPRO ' + p.path + ' TCCL=' + Thread.currentThread().contextClassLoader
+            println 'REPRO ' + p.path + ' buildscript CL=' + p.buildscript.classLoader
 
+            // A synthetic jar is enough: the failure is about resolving the "jar" scheme,
+            // not about the file's contents.
             def tmp = java.io.File.createTempFile('pyfm-repro', '.jar')
             new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(tmp)).close()
-            targets = [tmp] + targets
             try {
-                targets.each { f ->
-                    def uri = f.toPath().toUri()
-                    println 'REPRO target=' + f.name + ' uri=' + uri + ' host=[' + uri.host + ']'
+                def fileUri = tmp.toPath().toUri()
 
-                    // A: URI.create, the form an earlier diagnostic used successfully.
-                    def a = java.net.URI.create('jar:' + uri)
-                    try {
-                        def fs = java.nio.file.FileSystems.newFileSystem(a, [:])
-                        println 'REPRO A ' + f.name + ' newFileSystem(URI.create) -> OK'
-                        fs.close()
-                    } catch (Throwable t) { println 'REPRO A ' + f.name + ' -> FAILED ' + t }
+                // A: two-argument overload, URI.create form.
+                try {
+                    def fs = java.nio.file.FileSystems.newFileSystem(
+                            java.net.URI.create('jar:' + fileUri), [:])
+                    println 'REPRO ' + p.path + ' A newFileSystem(URI,Map) -> OK'
+                    fs.close()
+                } catch (Throwable t) {
+                    println 'REPRO ' + p.path + ' A -> FAILED ' + t
+                }
 
-                    // B: the four-argument constructor tiny-remapper's toJarUri uses.
-                    try {
-                        def b = new java.net.URI('jar:' + uri.scheme, uri.host, uri.path, uri.fragment)
-                        println 'REPRO B ' + f.name + ' uri=' + b + ' scheme=' + b.scheme
-                        try {
-                            def fs = java.nio.file.FileSystems.newFileSystem(b, [:])
-                            println 'REPRO B ' + f.name + ' newFileSystem(4-arg URI) -> OK'
-                            fs.close()
-                        } catch (Throwable t) { println 'REPRO B ' + f.name + ' -> FAILED ' + t }
-                    } catch (Throwable t) { println 'REPRO B ' + f.name + ' URI build -> FAILED ' + t }
+                // B: three-argument overload with this thread's context classloader, the
+                // form whose failure message matches the one Loom produced.
+                try {
+                    def fs = java.nio.file.FileSystems.newFileSystem(
+                            java.net.URI.create('jar:' + fileUri), [:],
+                            Thread.currentThread().contextClassLoader)
+                    println 'REPRO ' + p.path + ' B newFileSystem(URI,Map,TCCL) -> OK'
+                    fs.close()
+                } catch (Throwable t) {
+                    println 'REPRO ' + p.path + ' B -> FAILED ' + t
+                }
 
-                    // C: tiny-remapper itself, through Loom's classloader.
-                    try {
-                        def cls = Class.forName('net.fabricmc.tinyremapper.FileSystemReference', true, bsCl)
-                        def ref = cls.getMethod('openJar', java.nio.file.Path).invoke(null, f.toPath())
-                        println 'REPRO C ' + f.name + ' FileSystemReference.openJar -> OK (loader ' + cls.classLoader + ')'
-                        ref.close()
-                    } catch (Throwable t) { println 'REPRO C ' + f.name + ' openJar -> FAILED ' + (t.cause ?: t) }
+                // C: tiny-remapper itself, through the classloader that loaded Loom.
+                try {
+                    def cls = Class.forName('net.fabricmc.tinyremapper.FileSystemReference',
+                            true, p.buildscript.classLoader)
+                    def ref = cls.getMethod('openJar', java.nio.file.Path)
+                            .invoke(null, tmp.toPath())
+                    println 'REPRO ' + p.path + ' C FileSystemReference.openJar -> OK, ' +
+                            'loaded by ' + cls.classLoader
+                    ref.close()
+                } catch (Throwable t) {
+                    def cause = t
+                    while (cause.cause != null) cause = cause.cause
+                    println 'REPRO ' + p.path + ' C FileSystemReference.openJar -> FAILED ' +
+                            cause + ' @ ' + (cause.stackTrace.find { true } ?: 'n/a')
                 }
             } finally {
                 tmp.delete()
             }
         }
+    }
+}
+
+// Also usable as a standalone task on a project that does configure successfully.
+gradle.projectsLoaded {
+    gradle.rootProject.tasks.register('jarFsRepro') {
+        notCompatibleWithConfigurationCache('diagnostic task')
+        doLast { println 'REPRO task jarFsRepro ran on ' + project.path }
     }
 }

@@ -103,6 +103,24 @@ jobs:
             gradle --version 2>&1 | grep -E "Gradle|Kotlin|JVM|Launcher"
             echo
           } > build.log
+      # neoforge-26.3 fails in :createMinecraftArtifacts after ModDevGradle logs
+      # "Failed to parse MC version from NeoForge version 26.3.0.100. Using capabilities of
+      # latest known Minecraft version with Minecraft version 1.21.4." and NeoFormRuntime
+      # then throws "Function for step preProcessJar has invalid tool: null". This step asks
+      # the primary sources which ModDevGradle versions are published and what NeoForm
+      # functions the target's config actually uses.
+      - name: "Diagnostic: ModDevGradle and NeoForm versions"
+        if: startsWith(matrix.platform, 'neoforge')
+        continue-on-error: true
+        run: |
+          set +e
+          version=$(grep -E '^neoforge_version' \
+            "platforms/${{ matrix.platform }}/gradle.properties" | cut -d= -f2)
+          echo "neoforge_version=${version}"
+          python3 "${GITHUB_WORKSPACE}/tools/probe_neoform.py" "${version}" \
+            > moddev.txt 2>&1
+          python3 "${GITHUB_WORKSPACE}/tools/ci_annotate.py" notice \
+            "moddev versions: ${{ matrix.platform }}" moddev.txt 6000
       # fabric-26.3 fails inside Loom's Minecraft setup with
       # ProviderNotFoundException: Provider "jar" not found, while fabric-1.21.1 with the
       # same Loom and JVM does not. This step configures and compiles one subproject on its
@@ -162,12 +180,15 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          # Root project + --configure-on-demand: Loom aborts the configuration of
-          # :pyfm-core on fabric-26.3, so a task there never runs.
-          gradle --no-daemon --console=plain --configure-on-demand \
+          # Same invocation as the real failure, so the diagnostic is printed by the same
+          # JVM and classloader that Loom uses. The build is expected to fail here; the
+          # hook prints before Loom throws. A task registered on :pyfm-core never ran
+          # because Loom aborts that project's configuration.
+          gradle --no-daemon --console=plain --stacktrace \
             -I "${GITHUB_WORKSPACE}/tools/jarfs-repro.init.gradle" \
-            jarFsRepro 2>&1 | tee -a build.log
-          grep '^REPRO' build.log > repro.txt
+            :pyfm-core:compileJava 2>&1 | tee repro.log
+          grep '^REPRO' repro.log > repro.txt
+          echo "gradle exit status recorded; repro lines: $(wc -l < repro.txt)"
           python3 "${GITHUB_WORKSPACE}/tools/ci_annotate.py" notice \
             "jar filesystem repro: ${{ matrix.platform }}" repro.txt 4000
       - name: Build the three Python-for-Minecraft components
