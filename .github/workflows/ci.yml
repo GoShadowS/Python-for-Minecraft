@@ -155,6 +155,19 @@ jobs:
           } >> shade.txt
           python3 "${GITHUB_WORKSPACE}/tools/ci_annotate.py" notice \
             "shade resolution: ${{ matrix.platform }}" shade.txt 6000
+      # Minimal reproduction of the fabric-26.3 "Provider jar not found" failure inside the
+      # JVM and classloader where it happens. Read-only; the build steps stay fatal.
+      - name: "Diagnostic: reproduce the jar FileSystem failure"
+        working-directory: platforms/${{ matrix.platform }}
+        continue-on-error: true
+        run: |
+          set +e
+          gradle --no-daemon --console=plain \
+            -I "${GITHUB_WORKSPACE}/tools/jarfs-repro.init.gradle" \
+            :pyfm-core:jarFsRepro 2>&1 | tee -a build.log
+          grep '^REPRO' build.log > repro.txt
+          python3 "${GITHUB_WORKSPACE}/tools/ci_annotate.py" notice \
+            "jar filesystem repro: ${{ matrix.platform }}" repro.txt 4000
       - name: Build the three Python-for-Minecraft components
         working-directory: platforms/${{ matrix.platform }}
         run: |

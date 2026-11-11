@@ -89,8 +89,23 @@ tasks.processResources {
     }
 }
 
+// Shadow expands everything it is given as a ZIP, so it gets jars and nothing else.
+// Two GraalPy modules -- org.graalvm.python:python-community and
+// org.graalvm.python:python -- are POM aggregators: they pull in python-language,
+// python-resources, truffle-runtime, truffle-compiler, regex, icu4j and the rest as
+// real jars, but Gradle still lists their POM among the resolved artifacts, and
+// shadowJar died on "Cannot expand ZIP .../python-community-25.5.5.0.3.pom".
+// Filtering here keeps every real GraalPy jar in the mod jar and drops only the POMs.
+val shadeArtifacts = project.configurations.named("shade").get()
+.incoming.artifactView { it.lenient(false) }.artifacts
+
 tasks.shadowJar {
-    configurations = listOf(project.configurations.named("shade").get())
+    configurations = listOf()
+    from(provider {
+        shadeArtifacts.artifacts
+        .filter { it.file.name.endsWith(".jar") }
+        .map { zipTree(it.file) }
+    })
     archiveClassifier.set("all")
     mergeServiceFiles()
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
